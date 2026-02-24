@@ -9,21 +9,28 @@ onAuthStateChanged(auth, (user) => {
         if (greeting) greeting.innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
     } else {
         // Sem utilizador: Volta para o login imediatamente
-        window.location.replace("index.html");
+        window.location.replace("./index.html");
     }
 });
 
-// Logout (Sair)
+// --- 2. LOGOUT (Sair) ---
 const btnLogout = document.getElementById("btn-logout");
 if (btnLogout) {
-    btnLogout.addEventListener("click", async () => {
-        btnLogout.innerText = "Saindo...";
-        await signOut(auth); 
-        // A função onAuthStateChanged vai detetar o logoff e mudar de página sozinha
+    btnLogout.addEventListener("click", async (e) => {
+        e.preventDefault(); // Impede o comportamento padrão
+        try {
+            btnLogout.innerText = "A sair...";
+            await signOut(auth); 
+            window.location.replace("./index.html"); // Força o redirecionamento
+        } catch (error) {
+            console.error("Erro ao sair:", error);
+            btnLogout.innerText = "Sair";
+            alert("Erro ao terminar sessão. Verifique a consola.");
+        }
     });
 }
 
-// --- 2. CONTROLE DO MODAL ---
+// --- 3. CONTROLO DO MODAL ---
 const modal = document.getElementById("trip-modal");
 const btnCloseModal = document.getElementById("close-modal");
 const spanPlaca = document.getElementById("placa-selecionada");
@@ -32,8 +39,8 @@ let placaAtual = "";
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
         placaAtual = e.currentTarget.getAttribute("data-placa");
-        spanPlaca.innerText = placaAtual;
-        modal.classList.add("active");
+        if (spanPlaca) spanPlaca.innerText = placaAtual;
+        if (modal) modal.classList.add("active");
     });
 });
 
@@ -43,14 +50,15 @@ if (btnCloseModal) {
     });
 }
 
-// --- 3. CÁLCULOS MATEMÁTICOS ---
+// --- 4. CÁLCULOS MATEMÁTICOS ---
 const inputsKm = document.querySelectorAll(".calc-km");
 inputsKm.forEach(input => {
     input.addEventListener("input", () => {
         const inicio = parseFloat(document.getElementById("km_inicio").value) || 0;
         const final = parseFloat(document.getElementById("km_final").value) || 0;
         const total = final > inicio ? final - inicio : 0;
-        document.getElementById("km_total_display").innerText = total;
+        const display = document.getElementById("km_total_display");
+        if (display) display.innerText = total;
     });
 });
 
@@ -65,12 +73,14 @@ inputsFinanceiros.forEach(input => {
         const totalDespesas = mot + comb + pedagio;
         const liquido = frete - totalDespesas;
 
-        document.getElementById("total_despesas_display").innerText = totalDespesas.toFixed(2);
-        document.getElementById("total_liquido_display").innerText = liquido.toFixed(2);
+        const despDisplay = document.getElementById("total_despesas_display");
+        const liqDisplay = document.getElementById("total_liquido_display");
+        if (despDisplay) despDisplay.innerText = totalDespesas.toFixed(2);
+        if (liqDisplay) liqDisplay.innerText = liquido.toFixed(2);
     });
 });
 
-// --- 4. SALVAMENTO NO FIRESTORE ---
+// --- 5. GUARDAR NO FIRESTORE ---
 const tripForm = document.getElementById("trip-form");
 const btnSaveTrip = document.getElementById("btn-save-trip");
 
@@ -81,8 +91,10 @@ if (tripForm) {
         if (!auth.currentUser) return;
 
         try {
-            btnSaveTrip.innerText = "Salvando...";
-            btnSaveTrip.disabled = true;
+            if (btnSaveTrip) {
+                btnSaveTrip.innerText = "A guardar...";
+                btnSaveTrip.disabled = true;
+            }
 
             const frete = parseFloat(document.getElementById("valor_frete").value) || 0;
             const mot = parseFloat(document.getElementById("desp_mot").value) || 0;
@@ -103,8 +115,19 @@ if (tripForm) {
                 origem: document.getElementById("origem").value,
                 destino: document.getElementById("destino").value,
                 numero_nf: document.getElementById("nf").value,
-                valores: { frete_bruto: frete, despesa_motorista: mot, despesa_combustivel: comb, despesa_pedagio: pedagio, total_despesas: totalDespesas, total_liquido: liquido },
-                quilometragem: { km_inicio: inicio, km_final: final, km_total: totalKm },
+                valores: { 
+                    frete_bruto: frete, 
+                    despesa_motorista: mot, 
+                    despesa_combustivel: comb, 
+                    despesa_pedagio: pedagio, 
+                    total_despesas: totalDespesas, 
+                    total_liquido: liquido 
+                },
+                quilometragem: { 
+                    km_inicio: inicio, 
+                    km_final: final, 
+                    km_total: totalKm 
+                },
                 criado_em: serverTimestamp()
             };
 
@@ -121,8 +144,10 @@ if (tripForm) {
             console.error("Erro a guardar a viagem: ", error);
             alert("Falha ao guardar. Verifique a consola.");
         } finally {
-            btnSaveTrip.innerText = "💾 Guardar Viagem";
-            btnSaveTrip.disabled = false;
+            if (btnSaveTrip) {
+                btnSaveTrip.innerText = "💾 Guardar Viagem";
+                btnSaveTrip.disabled = false;
+            }
         }
     });
 }
