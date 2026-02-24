@@ -25,42 +25,56 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // === 2. LOGIN E LOGOUT ===
-document.getElementById("login-form")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const email = document.getElementById("email").value;
-    const senha = document.getElementById("senha").value;
+const loginForm = document.getElementById("login-form");
+if (loginForm) {
+    loginForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const email = document.getElementById("email").value;
+        const senha = document.getElementById("senha").value;
 
-    try {
-        btnLogin.innerText = "Aguarde...";
-        btnLogin.disabled = true;
-        await signInWithEmailAndPassword(auth, email, senha);
-        // O onAuthStateChanged vai detectar e trocar a tela automaticamente!
-    } catch (erro) {
-        console.error("Erro no login:", erro);
-        alert("E-mail ou senha incorretos.");
-    } finally {
-        btnLogin.innerText = "Entrar no Sistema";
-        btnLogin.disabled = false;
-    }
-});
+        try {
+            btnLogin.innerText = "Aguarde...";
+            btnLogin.disabled = true;
+            await signInWithEmailAndPassword(auth, email, senha);
+            // O onAuthStateChanged vai detectar e trocar a tela automaticamente!
+        } catch (erro) {
+            console.error("Erro no login:", erro);
+            alert("E-mail ou senha incorretos.");
+        } finally {
+            btnLogin.innerText = "Entrar no Sistema";
+            btnLogin.disabled = false;
+        }
+    });
+}
 
-document.getElementById("btn-logout")?.addEventListener("click", async () => {
-    await signOut(auth); // O onAuthStateChanged vai jogar para a tela de login
-});
+const btnLogout = document.getElementById("btn-logout");
+if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+        await signOut(auth); // O onAuthStateChanged vai jogar para a tela de login
+    });
+}
 
-// === 3. CONTROLE DO MODAL DE VIAGEM ===
+// === 3. CONTROLE DO MODAL DE VIAGEM (CORRIGIDO) ===
 const modal = document.getElementById("trip-modal");
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
         placaAtual = e.currentTarget.getAttribute("data-placa");
         document.getElementById("placa-selecionada").innerText = placaAtual;
+        
+        // CORREÇÃO: Removemos a trava 'hidden' e adicionamos o 'active' exigido pelo CSS
         modal.classList.remove("hidden");
+        modal.classList.add("active");
     });
 });
 
-document.getElementById("close-modal")?.addEventListener("click", () => {
-    modal.classList.add("hidden");
-});
+const btnCloseModal = document.getElementById("close-modal");
+if (btnCloseModal) {
+    btnCloseModal.addEventListener("click", () => {
+        // Fecha revertendo as classes
+        modal.classList.remove("active");
+        modal.classList.add("hidden");
+    });
+}
 
 // === 4. MATEMÁTICA AUTOMÁTICA ===
 document.querySelectorAll(".calc-km").forEach(input => {
@@ -85,45 +99,52 @@ document.querySelectorAll(".calc-input").forEach(input => {
 });
 
 // === 5. SALVAR NO FIRESTORE ===
-document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!auth.currentUser) return;
+const tripForm = document.getElementById("trip-form");
+if (tripForm) {
+    tripForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        if (!auth.currentUser) return;
 
-    const btnSave = document.getElementById("btn-save-trip");
-    try {
-        btnSave.innerText = "Salvando...";
-        btnSave.disabled = true;
+        const btnSave = document.getElementById("btn-save-trip");
+        try {
+            btnSave.innerText = "Salvando...";
+            btnSave.disabled = true;
 
-        const novaViagem = {
-            veiculo_id: placaAtual,
-            motorista_uid: auth.currentUser.uid,
-            data_viagem: document.getElementById("data_viagem").value,
-            origem: document.getElementById("origem").value,
-            destino: document.getElementById("destino").value,
-            numero_nf: document.getElementById("nf").value,
-            valores: {
-                total_despesas: parseFloat(document.getElementById("total_despesas_display").innerText),
-                total_liquido: parseFloat(document.getElementById("total_liquido_display").innerText)
-            },
-            quilometragem: { km_total: parseFloat(document.getElementById("km_total_display").innerText) },
-            criado_em: serverTimestamp()
-        };
+            const novaViagem = {
+                veiculo_id: placaAtual,
+                motorista_uid: auth.currentUser.uid,
+                data_viagem: document.getElementById("data_viagem").value,
+                origem: document.getElementById("origem").value,
+                destino: document.getElementById("destino").value,
+                numero_nf: document.getElementById("nf").value,
+                valores: {
+                    total_despesas: parseFloat(document.getElementById("total_despesas_display").innerText),
+                    total_liquido: parseFloat(document.getElementById("total_liquido_display").innerText)
+                },
+                quilometragem: { km_total: parseFloat(document.getElementById("km_total_display").innerText) },
+                criado_em: serverTimestamp()
+            };
 
-        await addDoc(collection(db, "viagens"), novaViagem);
-        alert("✅ Viagem salva com sucesso!");
-        
-        document.getElementById("trip-form").reset();
-        modal.classList.add("hidden");
-        carregarHistoricoViagens(auth.currentUser.uid); // Atualiza a tela
+            await addDoc(collection(db, "viagens"), novaViagem);
+            alert("✅ Viagem salva com sucesso!");
+            
+            tripForm.reset();
+            
+            // Fecha o modal corretamente após salvar
+            modal.classList.remove("active");
+            modal.classList.add("hidden");
+            
+            carregarHistoricoViagens(auth.currentUser.uid); // Atualiza a tela
 
-    } catch (error) {
-        console.error("Erro ao salvar: ", error);
-        alert("Erro ao salvar! Verifique as regras de segurança do Firestore no console do Firebase.");
-    } finally {
-        btnSave.innerText = "💾 Salvar Viagem";
-        btnSave.disabled = false;
-    }
-});
+        } catch (error) {
+            console.error("Erro ao salvar: ", error);
+            alert("Erro ao salvar! Verifique as regras de segurança do Firestore no console do Firebase.");
+        } finally {
+            btnSave.innerText = "💾 Salvar Viagem";
+            btnSave.disabled = false;
+        }
+    });
+}
 
 // === 6. BUSCAR HISTÓRICO ===
 async function carregarHistoricoViagens(uid) {
