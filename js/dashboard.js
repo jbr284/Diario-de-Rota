@@ -1,7 +1,7 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { auth } from "./firebase-init.js";
 
-// --- 1. SEGURANÇA DE ROTA (Com proteção Anti-Loop) ---
+// --- 1. SEGURANÇA DE ROTA (Proteção Blindada) ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         // Usuário logado: exibe o nome dele na tela
@@ -10,12 +10,9 @@ onAuthStateChanged(auth, (user) => {
             greeting.innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
         }
     } else {
-        // Usuário DESLOGADO: Verifica em qual página estamos antes de redirecionar
-        const urlAtual = window.location.href;
-        // Só redireciona se a pessoa estiver na página do dashboard
-        if (urlAtual.includes("dashboard.html")) {
-            window.location.replace("./index.html");
-        }
+        // Usuário DESLOGADO. Como este script só roda no Dashboard, 
+        // força a saída IMEDIATAMENTE para a tela de login.
+        window.location.replace("index.html");
     }
 });
 
@@ -24,12 +21,19 @@ const btnLogout = document.getElementById("btn-logout");
 if (btnLogout) {
     btnLogout.addEventListener("click", async () => {
         try {
+            // Dá o feedback visual
             btnLogout.innerText = "Saindo...";
-            await signOut(auth); // Isso avisa o Firebase para encerrar a sessão
-            // Após isso, o onAuthStateChanged ali em cima toma o controle e faz o redirecionamento.
+            
+            // Avisa o Firebase para encerrar a sessão
+            await signOut(auth); 
+            
+            // Plano B (Fail-safe): Força o redirecionamento caso o observador falhe
+            window.location.replace("index.html");
+            
         } catch (error) {
             console.error("Erro ao sair:", error);
             btnLogout.innerText = "Sair";
+            alert("Erro ao tentar sair da conta. Verifique sua conexão.");
         }
     });
 }
@@ -40,6 +44,7 @@ const btnCloseModal = document.getElementById("close-modal");
 const spanPlaca = document.getElementById("placa-selecionada");
 let placaAtual = "";
 
+// Abrir modal ao clicar no caminhão
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
         placaAtual = e.currentTarget.getAttribute("data-placa");
@@ -48,6 +53,7 @@ document.querySelectorAll(".truck-card").forEach(button => {
     });
 });
 
+// Fechar modal
 if (btnCloseModal) {
     btnCloseModal.addEventListener("click", () => {
         modal.classList.remove("active");
@@ -55,6 +61,7 @@ if (btnCloseModal) {
 }
 
 // --- 4. CÁLCULOS AUTOMÁTICOS EM TEMPO REAL ---
+// Lógica da Quilometragem
 const inputsKm = document.querySelectorAll(".calc-km");
 inputsKm.forEach(input => {
     input.addEventListener("input", () => {
@@ -65,6 +72,7 @@ inputsKm.forEach(input => {
     });
 });
 
+// Lógica Financeira (Frete e Despesas)
 const inputsFinanceiros = document.querySelectorAll(".calc-input");
 inputsFinanceiros.forEach(input => {
     input.addEventListener("input", () => {
@@ -76,6 +84,7 @@ inputsFinanceiros.forEach(input => {
         const totalDespesas = mot + comb + pedagio;
         const liquido = frete - totalDespesas;
 
+        // Atualiza os valores formatados na tela
         document.getElementById("total_despesas_display").innerText = totalDespesas.toFixed(2);
         document.getElementById("total_liquido_display").innerText = liquido.toFixed(2);
     });
