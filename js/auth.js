@@ -1,10 +1,10 @@
 import { signInWithEmailAndPassword, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { auth } from "./firebase-init.js";
 
-// Se o utilizador já tem sessão iniciada, vai logo para o painel
+// Redireciona imediatamente se já houver um utilizador com sessão iniciada
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        window.location.href = "dashboard.html";
+        window.location.replace("./dashboard.html");
     }
 });
 
@@ -22,12 +22,11 @@ if (loginForm) {
             btnLogin.disabled = true;
 
             await signInWithEmailAndPassword(auth, email, senha);
-            // Redirecionamento após sucesso
-            window.location.href = "dashboard.html";
+            window.location.replace("./dashboard.html");
             
         } catch (erro) {
             console.error("Erro no login:", erro.code);
-            alert("E-mail ou senha incorretos. Tente novamente.");
+            alert("E-mail ou palavra-passe incorretos. Tente novamente.");
             btnLogin.innerText = "Entrar no Sistema";
             btnLogin.disabled = false;
         }
