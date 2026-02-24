@@ -1,32 +1,25 @@
-// Importações de Autenticação
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-// Importações do Banco de Dados (Firestore)
 import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
-// Nossas instâncias configuradas
 import { auth, db } from "./firebase-init.js";
 
-// --- 1. SEGURANÇA DE ROTA ---
+// --- 1. SEGURANÇA BLINDADA ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const greeting = document.getElementById("user-greeting");
         if (greeting) greeting.innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
     } else {
+        // Sem utilizador: Volta para o login imediatamente
         window.location.replace("index.html");
     }
 });
 
-// Logout
+// Logout (Sair)
 const btnLogout = document.getElementById("btn-logout");
 if (btnLogout) {
     btnLogout.addEventListener("click", async () => {
-        try {
-            btnLogout.innerText = "Saindo...";
-            await signOut(auth); 
-            window.location.replace("index.html");
-        } catch (error) {
-            console.error("Erro ao sair:", error);
-            btnLogout.innerText = "Sair";
-        }
+        btnLogout.innerText = "Saindo...";
+        await signOut(auth); 
+        // A função onAuthStateChanged vai detetar o logoff e mudar de página sozinha
     });
 }
 
@@ -50,7 +43,7 @@ if (btnCloseModal) {
     });
 }
 
-// --- 3. CÁLCULOS EM TEMPO REAL ---
+// --- 3. CÁLCULOS MATEMÁTICOS ---
 const inputsKm = document.querySelectorAll(".calc-km");
 inputsKm.forEach(input => {
     input.addEventListener("input", () => {
@@ -77,7 +70,7 @@ inputsFinanceiros.forEach(input => {
     });
 });
 
-// --- 4. SALVAMENTO NO FIREBASE (FIRESTORE) ---
+// --- 4. SALVAMENTO NO FIRESTORE ---
 const tripForm = document.getElementById("trip-form");
 const btnSaveTrip = document.getElementById("btn-save-trip");
 
@@ -85,18 +78,12 @@ if (tripForm) {
     tripForm.addEventListener("submit", async (e) => {
         e.preventDefault();
         
-        // Proteção: Garante que só envie se o motorista estiver logado
-        if (!auth.currentUser) {
-            alert("Erro de segurança: Usuário não autenticado.");
-            return;
-        }
+        if (!auth.currentUser) return;
 
         try {
-            // Feedback visual de carregamento
             btnSaveTrip.innerText = "Salvando...";
             btnSaveTrip.disabled = true;
 
-            // Recalcula os totais para garantir a precisão antes de enviar
             const frete = parseFloat(document.getElementById("valor_frete").value) || 0;
             const mot = parseFloat(document.getElementById("desp_mot").value) || 0;
             const comb = parseFloat(document.getElementById("desp_comb").value) || 0;
@@ -108,38 +95,22 @@ if (tripForm) {
             const final = parseFloat(document.getElementById("km_final").value) || 0;
             const totalKm = final > inicio ? final - inicio : 0;
 
-            // Estrutura o Objeto JSON (Documento) a ser salvo no NoSQL
             const novaViagem = {
                 veiculo_id: placaAtual,
                 motorista_email: auth.currentUser.email,
-                motorista_uid: auth.currentUser.uid, // ID único de segurança do Firebase
+                motorista_uid: auth.currentUser.uid,
                 data_viagem: document.getElementById("data_viagem").value,
                 origem: document.getElementById("origem").value,
                 destino: document.getElementById("destino").value,
                 numero_nf: document.getElementById("nf").value,
-                valores: {
-                    frete_bruto: frete,
-                    despesa_motorista: mot,
-                    despesa_combustivel: comb,
-                    despesa_pedagio: pedagio,
-                    total_despesas: totalDespesas,
-                    total_liquido: liquido
-                },
-                quilometragem: {
-                    km_inicio: inicio,
-                    km_final: final,
-                    km_total: totalKm
-                },
-                criado_em: serverTimestamp() // Carimbo de data/hora seguro gerado pelo servidor
+                valores: { frete_bruto: frete, despesa_motorista: mot, despesa_combustivel: comb, despesa_pedagio: pedagio, total_despesas: totalDespesas, total_liquido: liquido },
+                quilometragem: { km_inicio: inicio, km_final: final, km_total: totalKm },
+                criado_em: serverTimestamp()
             };
 
-            // Comando mágico: Envia para a coleção "viagens" no Firestore
-            const docRef = await addDoc(collection(db, "viagens"), novaViagem);
+            await addDoc(collection(db, "viagens"), novaViagem);
             
-            console.log("✅ Viagem salva com ID:", docRef.id);
-            alert("Viagem registrada com sucesso!");
-
-            // Limpa o formulário, fecha o modal e restaura o botão
+            alert("Viagem guardada com sucesso!");
             tripForm.reset();
             document.getElementById("total_despesas_display").innerText = "0.00";
             document.getElementById("total_liquido_display").innerText = "0.00";
@@ -147,11 +118,10 @@ if (tripForm) {
             modal.classList.remove("active");
 
         } catch (error) {
-            console.error("Erro ao salvar a viagem: ", error);
-            alert("Falha ao salvar. Verifique o console para mais detalhes.");
+            console.error("Erro a guardar a viagem: ", error);
+            alert("Falha ao guardar. Verifique a consola.");
         } finally {
-            // Restaura o botão de salvar independente de sucesso ou erro
-            btnSaveTrip.innerText = "💾 Salvar Viagem";
+            btnSaveTrip.innerText = "💾 Guardar Viagem";
             btnSaveTrip.disabled = false;
         }
     });
