@@ -14,7 +14,6 @@ onAuthStateChanged(auth, (user) => {
         loginView.classList.add("hidden");
         dashboardView.classList.remove("hidden");
         document.getElementById("user-greeting").innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
-        // Não carrega a lista logo de cara, pede para selecionar o caminhão primeiro.
         document.getElementById("accordion-container").innerHTML = "<p class='loading-text'>Selecione um caminhão acima para carregar as viagens.</p>";
     } else {
         dashboardView.classList.add("hidden");
@@ -55,24 +54,18 @@ const historyTitle = document.getElementById("history-title");
 
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
-        // 1. Remove o destaque de todos os botões e aplica só no clicado
         document.querySelectorAll(".truck-card").forEach(btn => btn.classList.remove("active-truck"));
         e.currentTarget.classList.add("active-truck");
 
-        // 2. Grava qual placa está selecionada
         placaAtual = e.currentTarget.getAttribute("data-placa");
         document.getElementById("placa-selecionada").innerText = placaAtual;
         historyTitle.innerText = `📄 Histórico - ${placaAtual}`;
         
-        // 3. Mostra o botão verde de Nova Viagem
         actionArea.classList.remove("hidden");
-
-        // 4. Vai no banco de dados buscar AS VIAGENS DAQUELA PLACA
         carregarHistoricoViagens(auth.currentUser.uid, placaAtual);
     });
 });
 
-// Clique no botão verde para abrir o formulário
 document.getElementById("btn-open-modal")?.addEventListener("click", () => {
     modal.classList.remove("hidden");
     modal.classList.add("active");
@@ -125,10 +118,18 @@ if (tripForm) {
                 destino: document.getElementById("destino").value,
                 numero_nf: document.getElementById("nf").value,
                 valores: {
+                    frete_bruto: parseFloat(document.getElementById("valor_frete").value) || 0,
+                    despesa_motorista: parseFloat(document.getElementById("desp_mot").value) || 0,
+                    despesa_combustivel: parseFloat(document.getElementById("desp_comb").value) || 0,
+                    despesa_pedagio: parseFloat(document.getElementById("desp_pedagio").value) || 0,
                     total_despesas: parseFloat(document.getElementById("total_despesas_display").innerText),
                     total_liquido: parseFloat(document.getElementById("total_liquido_display").innerText)
                 },
-                quilometragem: { km_total: parseFloat(document.getElementById("km_total_display").innerText) },
+                quilometragem: { 
+                    km_inicio: parseFloat(document.getElementById("km_inicio").value) || 0,
+                    km_final: parseFloat(document.getElementById("km_final").value) || 0,
+                    km_total: parseFloat(document.getElementById("km_total_display").innerText) 
+                },
                 criado_em: serverTimestamp()
             };
 
@@ -139,7 +140,6 @@ if (tripForm) {
             modal.classList.remove("active");
             modal.classList.add("hidden");
             
-            // Atualiza o histórico mostrando a viagem que acabou de salvar
             carregarHistoricoViagens(auth.currentUser.uid, placaAtual); 
 
         } catch (error) {
@@ -152,13 +152,12 @@ if (tripForm) {
     });
 }
 
-// === 6. BUSCAR HISTÓRICO FILTRADO ===
+// === 6. BUSCAR HISTÓRICO FILTRADO E DETALHADO ===
 async function carregarHistoricoViagens(uid, placa) {
     const container = document.getElementById("accordion-container");
     container.innerHTML = "<p class='loading-text'>Buscando viagens...</p>";
     
     try {
-        // Query Avançada: Filtra pelo motorista E pela placa selecionada
         const q = query(collection(db, "viagens"), 
             where("motorista_uid", "==", uid),
             where("veiculo_id", "==", placa)
@@ -173,22 +172,47 @@ async function carregarHistoricoViagens(uid, placa) {
 
         let viagens = [];
         querySnapshot.forEach((doc) => viagens.push(doc.data()));
-        // Ordena da mais recente para a mais antiga
         viagens.sort((a, b) => new Date(b.data_viagem) - new Date(a.data_viagem));
 
         let html = "";
         viagens.forEach((v) => {
+            // Aqui criamos o cartão super detalhado!
             html += `
-            <details class="form-section" style="margin-bottom: 10px; cursor: pointer; background: #fff;">
-                <summary style="font-weight: bold; padding: 10px; outline: none;">
-                    📅 ${v.data_viagem.split('-').reverse().join('/')} <br>
-                    <span style="color: #2ecc71;">💰 LÍQUIDO: R$ ${v.valores.total_liquido.toFixed(2)}</span>
+            <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
+                <summary style="font-weight: bold; padding: 12px; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <span style="font-size: 13px; color: #7f8c8d;">📅 ${v.data_viagem.split('-').reverse().join('/')}</span><br>
+                        <span style="color: #2c3e50;">📍 ${v.origem} ➔ ${v.destino}</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="color: #2ecc71; font-size: 16px;">💰 R$ ${v.valores.total_liquido.toFixed(2)}</span>
+                        <div style="font-size: 10px; color: #95a5a6;">(Líquido)</div>
+                    </div>
                 </summary>
-                <div style="padding: 10px; border-top: 1px solid #ddd; font-size: 14px;">
-                    <p>📍 ${v.origem} ➔ ${v.destino}</p>
-                    <p>📦 NF: ${v.numero_nf || 'S/N'}</p>
-                    <p>📉 Despesas Totais: R$ ${v.valores.total_despesas.toFixed(2)}</p>
-                    <p>🛣️ Km Rodado: ${v.quilometragem.km_total} km</p>
+                
+                <div style="padding: 15px; border-top: 1px solid #eee; font-size: 14px; line-height: 1.8; color: #34495e;">
+                    <p>📦 <strong>NF:</strong> ${v.numero_nf || 'S/N'}</p>
+                    
+                    <hr style="margin: 10px 0; border: 0; border-top: 1px dashed #ccc;">
+                    
+                    <p style="font-weight: 600; color: #2980b9;">🛣️ Quilometragem</p>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Início: ${v.quilometragem.km_inicio}</span>
+                        <span>Final: ${v.quilometragem.km_final}</span>
+                    </div>
+                    <p style="text-align: right; font-weight: bold;">Total Rodado: ${v.quilometragem.km_total} km</p>
+                    
+                    <hr style="margin: 10px 0; border: 0; border-top: 1px dashed #ccc;">
+                    
+                    <p style="font-weight: 600; color: #2980b9;">💰 Financeiro</p>
+                    <div style="display: flex; justify-content: space-between;"><span>Frete Bruto:</span> <span>R$ ${v.valores.frete_bruto.toFixed(2)}</span></div>
+                    <div style="display: flex; justify-content: space-between; color: #e74c3c;"><span>(-) Motorista:</span> <span>R$ ${v.valores.despesa_motorista.toFixed(2)}</span></div>
+                    <div style="display: flex; justify-content: space-between; color: #e74c3c;"><span>(-) Combustível:</span> <span>R$ ${v.valores.despesa_combustivel.toFixed(2)}</span></div>
+                    <div style="display: flex; justify-content: space-between; color: #e74c3c;"><span>(-) Pedágio:</span> <span>R$ ${v.valores.despesa_pedagio.toFixed(2)}</span></div>
+                    
+                    <div style="display: flex; justify-content: space-between; font-weight: bold; margin-top: 5px; padding-top: 5px; border-top: 1px solid #eee;">
+                        <span>Total Despesas:</span> <span>R$ ${v.valores.total_despesas.toFixed(2)}</span>
+                    </div>
                 </div>
             </details>`;
         });
