@@ -1,19 +1,20 @@
 {
-  "name": "Orçamento Oficina da Fórmula",
-  "short_name": "Orçamento",
-  "description": "Calculadora de orçamento de manipulação",
-  "start_url": "/index.html",
+  "name": "Diário de Rota",
+  "short_name": "Diário de Rota",
+  "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#28a745",
+  "background_color": "#f4f7f6",
+  "theme_color": "#2980b9",
+  "description": "Controle de Fretes, Despesas e Quilometragem",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "./assets/icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "icon.png",
+      "src": "./assets/icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
