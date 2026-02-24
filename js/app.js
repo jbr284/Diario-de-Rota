@@ -8,17 +8,15 @@ const dashboardView = document.getElementById("dashboard-view");
 const btnLogin = document.getElementById("btn-login");
 let placaAtual = "";
 
-// === 1. CONTROLADOR CENTRAL DE TELAS (O CORAÇÃO DA SPA) ===
+// === 1. CONTROLADOR CENTRAL DE TELAS ===
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        // Usuário logado: Esconde login, Mostra painel
         loginView.classList.add("hidden");
         dashboardView.classList.remove("hidden");
-        
         document.getElementById("user-greeting").innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
-        carregarHistoricoViagens(user.uid); // Busca os dados no banco
+        // Não carrega a lista logo de cara, pede para selecionar o caminhão primeiro.
+        document.getElementById("accordion-container").innerHTML = "<p class='loading-text'>Selecione um caminhão acima para carregar as viagens.</p>";
     } else {
-        // Deslogado: Esconde painel, Mostra login
         dashboardView.classList.add("hidden");
         loginView.classList.remove("hidden");
     }
@@ -36,7 +34,6 @@ if (loginForm) {
             btnLogin.innerText = "Aguarde...";
             btnLogin.disabled = true;
             await signInWithEmailAndPassword(auth, email, senha);
-            // O onAuthStateChanged vai detectar e trocar a tela automaticamente!
         } catch (erro) {
             console.error("Erro no login:", erro);
             alert("E-mail ou senha incorretos.");
@@ -47,34 +44,44 @@ if (loginForm) {
     });
 }
 
-const btnLogout = document.getElementById("btn-logout");
-if (btnLogout) {
-    btnLogout.addEventListener("click", async () => {
-        await signOut(auth); // O onAuthStateChanged vai jogar para a tela de login
-    });
-}
+document.getElementById("btn-logout")?.addEventListener("click", async () => {
+    await signOut(auth);
+});
 
-// === 3. CONTROLE DO MODAL DE VIAGEM (CORRIGIDO) ===
+// === 3. SELEÇÃO DO CAMINHÃO E ABERTURA DO MODAL ===
 const modal = document.getElementById("trip-modal");
+const actionArea = document.getElementById("action-area");
+const historyTitle = document.getElementById("history-title");
+
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
+        // 1. Remove o destaque de todos os botões e aplica só no clicado
+        document.querySelectorAll(".truck-card").forEach(btn => btn.classList.remove("active-truck"));
+        e.currentTarget.classList.add("active-truck");
+
+        // 2. Grava qual placa está selecionada
         placaAtual = e.currentTarget.getAttribute("data-placa");
         document.getElementById("placa-selecionada").innerText = placaAtual;
+        historyTitle.innerText = `📄 Histórico - ${placaAtual}`;
         
-        // CORREÇÃO: Removemos a trava 'hidden' e adicionamos o 'active' exigido pelo CSS
-        modal.classList.remove("hidden");
-        modal.classList.add("active");
+        // 3. Mostra o botão verde de Nova Viagem
+        actionArea.classList.remove("hidden");
+
+        // 4. Vai no banco de dados buscar AS VIAGENS DAQUELA PLACA
+        carregarHistoricoViagens(auth.currentUser.uid, placaAtual);
     });
 });
 
-const btnCloseModal = document.getElementById("close-modal");
-if (btnCloseModal) {
-    btnCloseModal.addEventListener("click", () => {
-        // Fecha revertendo as classes
-        modal.classList.remove("active");
-        modal.classList.add("hidden");
-    });
-}
+// Clique no botão verde para abrir o formulário
+document.getElementById("btn-open-modal")?.addEventListener("click", () => {
+    modal.classList.remove("hidden");
+    modal.classList.add("active");
+});
+
+document.getElementById("close-modal")?.addEventListener("click", () => {
+    modal.classList.remove("active");
+    modal.classList.add("hidden");
+});
 
 // === 4. MATEMÁTICA AUTOMÁTICA ===
 document.querySelectorAll(".calc-km").forEach(input => {
@@ -129,16 +136,15 @@ if (tripForm) {
             alert("✅ Viagem salva com sucesso!");
             
             tripForm.reset();
-            
-            // Fecha o modal corretamente após salvar
             modal.classList.remove("active");
             modal.classList.add("hidden");
             
-            carregarHistoricoViagens(auth.currentUser.uid); // Atualiza a tela
+            // Atualiza o histórico mostrando a viagem que acabou de salvar
+            carregarHistoricoViagens(auth.currentUser.uid, placaAtual); 
 
         } catch (error) {
             console.error("Erro ao salvar: ", error);
-            alert("Erro ao salvar! Verifique as regras de segurança do Firestore no console do Firebase.");
+            alert("Erro ao salvar no banco de dados.");
         } finally {
             btnSave.innerText = "💾 Salvar Viagem";
             btnSave.disabled = false;
@@ -146,35 +152,49 @@ if (tripForm) {
     });
 }
 
-// === 6. BUSCAR HISTÓRICO ===
-async function carregarHistoricoViagens(uid) {
+// === 6. BUSCAR HISTÓRICO FILTRADO ===
+async function carregarHistoricoViagens(uid, placa) {
     const container = document.getElementById("accordion-container");
+    container.innerHTML = "<p class='loading-text'>Buscando viagens...</p>";
+    
     try {
-        const q = query(collection(db, "viagens"), where("motorista_uid", "==", uid));
+        // Query Avançada: Filtra pelo motorista E pela placa selecionada
+        const q = query(collection(db, "viagens"), 
+            where("motorista_uid", "==", uid),
+            where("veiculo_id", "==", placa)
+        );
+        
         const querySnapshot = await getDocs(q);
 
         if (querySnapshot.empty) {
-            container.innerHTML = "<p class='loading-text'>Nenhuma viagem registrada.</p>";
+            container.innerHTML = `<p class='loading-text'>Nenhuma viagem registrada para o caminhão ${placa}.</p>`;
             return;
         }
 
+        let viagens = [];
+        querySnapshot.forEach((doc) => viagens.push(doc.data()));
+        // Ordena da mais recente para a mais antiga
+        viagens.sort((a, b) => new Date(b.data_viagem) - new Date(a.data_viagem));
+
         let html = "";
-        querySnapshot.forEach((doc) => {
-            const v = doc.data();
+        viagens.forEach((v) => {
             html += `
             <details class="form-section" style="margin-bottom: 10px; cursor: pointer; background: #fff;">
-                <summary style="font-weight: bold; padding: 10px;">
-                    📅 ${v.data_viagem} | 🚚 ${v.veiculo_id} <br>
+                <summary style="font-weight: bold; padding: 10px; outline: none;">
+                    📅 ${v.data_viagem.split('-').reverse().join('/')} <br>
                     <span style="color: #2ecc71;">💰 LÍQUIDO: R$ ${v.valores.total_liquido.toFixed(2)}</span>
                 </summary>
                 <div style="padding: 10px; border-top: 1px solid #ddd; font-size: 14px;">
                     <p>📍 ${v.origem} ➔ ${v.destino}</p>
+                    <p>📦 NF: ${v.numero_nf || 'S/N'}</p>
                     <p>📉 Despesas Totais: R$ ${v.valores.total_despesas.toFixed(2)}</p>
+                    <p>🛣️ Km Rodado: ${v.quilometragem.km_total} km</p>
                 </div>
             </details>`;
         });
         container.innerHTML = html;
     } catch (error) {
-        container.innerHTML = "<p style='color: red;'>Erro ao carregar histórico.</p>";
+        console.error("Erro ao buscar histórico:", error);
+        container.innerHTML = "<p style='color: red; text-align: center;'>Erro ao carregar histórico.</p>";
     }
 }
