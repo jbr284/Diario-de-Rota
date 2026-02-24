@@ -1,86 +1,51 @@
-/* Reset básico e tipografia */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-}
+/* Reset e Tipografia */
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+body { background-color: #f4f7f6; display: flex; justify-content: center; min-height: 100vh; }
 
-body {
-    background-color: #f4f7f6;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-}
+/* Container Mobile */
+.container { width: 100%; max-width: 480px; padding: 20px; background-color: #ffffff; min-height: 100vh; box-shadow: 0 0 15px rgba(0,0,0,0.05); }
 
-/* Container principal simulando a tela de um celular */
-.container {
-    width: 100%;
-    max-width: 400px;
-    padding: 30px 20px;
-    background-color: #ffffff;
-    border-radius: 12px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
+/* Header Login / Dashboard */
+header { text-align: center; margin-bottom: 25px; margin-top: 20px;}
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; text-align: left; }
+.dashboard-header h2 { font-size: 20px; color: #2c3e50; }
+.dashboard-header p { font-size: 14px; color: #7f8c8d; }
 
-header {
-    text-align: center;
-    margin-bottom: 30px;
-}
+/* Inputs Padrão */
+.input-group { margin-bottom: 15px; }
+.input-group label { display: block; margin-bottom: 5px; color: #34495e; font-size: 14px; font-weight: 600; }
+.input-group input { width: 100%; padding: 12px; border: 1px solid #bdc3c7; border-radius: 8px; font-size: 16px; background-color: #fdfdfd; }
+.input-group input:focus { border-color: #2980b9; outline: none; }
 
-header h1 {
-    font-size: 24px;
-    color: #2c3e50;
-    margin-bottom: 5px;
-}
+/* Botões */
+button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+.btn-primary, #btn-login { background-color: #2980b9; color: white; }
+.btn-primary:hover, #btn-login:hover { background-color: #1c5980; }
+.btn-logout { background-color: #e74c3c; color: white; width: auto; padding: 10px 15px; font-size: 14px; }
 
-header p {
-    color: #7f8c8d;
-    font-size: 14px;
-}
+/* Seleção de Caminhões (Cards) */
+.truck-selection { display: flex; gap: 15px; margin-bottom: 25px; }
+.truck-card { flex: 1; background-color: #ecf0f1; color: #2c3e50; border: 2px solid transparent; padding: 20px 10px; display: flex; flex-direction: column; align-items: center; }
+.truck-card:active { border-color: #2980b9; background-color: #e8f4f8; }
+.truck-card h3 { font-size: 18px; margin-bottom: 5px; }
+.truck-card p { font-size: 12px; color: #7f8c8d; font-weight: normal; }
 
-/* Estilização do Formulário */
-.input-group {
-    margin-bottom: 20px;
-}
+/* Linha divisória */
+.divider { border: 0; height: 1px; background: #ecf0f1; margin: 20px 0; }
+.history-section h3 { color: #2c3e50; margin-bottom: 15px; font-size: 18px; }
 
-.input-group label {
-    display: block;
-    margin-bottom: 8px;
-    color: #34495e;
-    font-weight: 500;
-}
+/* --- MODAL DO FORMULÁRIO --- */
+.modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); overflow-y: auto; }
+.modal.active { display: flex; justify-content: center; align-items: flex-start; padding-top: 20px; padding-bottom: 20px; }
+.modal-content { background-color: #fff; width: 95%; max-width: 480px; padding: 20px; border-radius: 12px; position: relative; }
+.close-btn { color: #aaa; position: absolute; top: 15px; right: 20px; font-size: 28px; font-weight: bold; cursor: pointer; }
+.close-btn:hover { color: #333; }
 
-.input-group input {
-    width: 100%;
-    padding: 14px;
-    border: 1px solid #bdc3c7;
-    border-radius: 8px;
-    font-size: 16px;
-    transition: border-color 0.3s;
-}
+/* Seções Internas do Formulário */
+.form-section { background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px; border: 1px solid #e9ecef; }
+.form-section h3 { font-size: 15px; color: #2c3e50; margin-bottom: 12px; border-bottom: 1px solid #ddd; padding-bottom: 5px; }
+.result-text { font-size: 15px; color: #34495e; text-align: right; }
 
-.input-group input:focus {
-    border-color: #3498db;
-    outline: none;
-}
-
-/* Botão principal de ação */
-button {
-    width: 100%;
-    padding: 16px;
-    background-color: #2980b9;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    margin-top: 10px;
-    transition: background-color 0.3s;
-}
-
-button:hover {
-    background-color: #2471a3;
-}
+.summary-section { background-color: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: right; }
+.summary-section h3 { text-align: left; margin-bottom: 10px; border-bottom: 1px solid #455a64; padding-bottom: 5px; }
+.highlight-net { font-size: 20px; font-weight: bold; color: #2ecc71; margin-top: 5px; }
