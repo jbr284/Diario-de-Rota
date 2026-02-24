@@ -1,43 +1,60 @@
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { auth } from "./firebase-init.js";
 
-// --- 1. SEGURANÇA DE ROTA ---
+// --- 1. SEGURANÇA DE ROTA (Com proteção Anti-Loop) ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
-        document.getElementById("user-greeting").innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
+        // Usuário logado: exibe o nome dele na tela
+        const greeting = document.getElementById("user-greeting");
+        if (greeting) {
+            greeting.innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
+        }
     } else {
-        window.location.replace("index.html");
+        // Usuário DESLOGADO: Verifica em qual página estamos antes de redirecionar
+        const urlAtual = window.location.href;
+        // Só redireciona se a pessoa estiver na página do dashboard
+        if (urlAtual.includes("dashboard.html")) {
+            window.location.replace("./index.html");
+        }
     }
 });
 
-// Logout
-document.getElementById("btn-logout")?.addEventListener("click", async () => {
-    await signOut(auth);
-});
+// --- 2. LOGOUT (Sair) ---
+const btnLogout = document.getElementById("btn-logout");
+if (btnLogout) {
+    btnLogout.addEventListener("click", async () => {
+        try {
+            btnLogout.innerText = "Saindo...";
+            await signOut(auth); // Isso avisa o Firebase para encerrar a sessão
+            // Após isso, o onAuthStateChanged ali em cima toma o controle e faz o redirecionamento.
+        } catch (error) {
+            console.error("Erro ao sair:", error);
+            btnLogout.innerText = "Sair";
+        }
+    });
+}
 
-// --- 2. CONTROLE DO MODAL (FORMULÁRIO) ---
+// --- 3. CONTROLE DO MODAL (FORMULÁRIO) ---
 const modal = document.getElementById("trip-modal");
 const btnCloseModal = document.getElementById("close-modal");
 const spanPlaca = document.getElementById("placa-selecionada");
 let placaAtual = "";
 
-// Abrir modal ao clicar em um caminhão
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
-        // Pega a placa do botão clicado
         placaAtual = e.currentTarget.getAttribute("data-placa");
         spanPlaca.innerText = placaAtual;
         modal.classList.add("active");
     });
 });
 
-// Fechar modal
-btnCloseModal.addEventListener("click", () => {
-    modal.classList.remove("active");
-});
+if (btnCloseModal) {
+    btnCloseModal.addEventListener("click", () => {
+        modal.classList.remove("active");
+    });
+}
 
-// --- 3. CÁLCULOS AUTOMÁTICOS EM TEMPO REAL ---
-// Lógica da Quilometragem
+// --- 4. CÁLCULOS AUTOMÁTICOS EM TEMPO REAL ---
 const inputsKm = document.querySelectorAll(".calc-km");
 inputsKm.forEach(input => {
     input.addEventListener("input", () => {
@@ -48,7 +65,6 @@ inputsKm.forEach(input => {
     });
 });
 
-// Lógica Financeira (Frete, Despesas e Líquido)
 const inputsFinanceiros = document.querySelectorAll(".calc-input");
 inputsFinanceiros.forEach(input => {
     input.addEventListener("input", () => {
@@ -60,15 +76,16 @@ inputsFinanceiros.forEach(input => {
         const totalDespesas = mot + comb + pedagio;
         const liquido = frete - totalDespesas;
 
-        // Atualiza a tela formatando para Moeda (R$)
         document.getElementById("total_despesas_display").innerText = totalDespesas.toFixed(2);
         document.getElementById("total_liquido_display").innerText = liquido.toFixed(2);
     });
 });
 
-// --- 4. PREPARANDO O SALVAMENTO ---
-document.getElementById("trip-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    alert(`Pronto para salvar a viagem do caminhão ${placaAtual} no Firebase!`);
-    // No próximo passo, enviaremos o objeto JSON para o banco de dados aqui.
-});
+// --- 5. PREPARANDO O SALVAMENTO ---
+const tripForm = document.getElementById("trip-form");
+if (tripForm) {
+    tripForm.addEventListener("submit", (e) => {
+        e.preventDefault();
+        alert(`Pronto para salvar a viagem do caminhão ${placaAtual} no Firebase!`);
+    });
+}
