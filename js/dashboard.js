@@ -2,35 +2,34 @@ import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/
 import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { auth, db } from "./firebase-init.js";
 
-// --- 1. SEGURANÇA BLINDADA ---
+// --- 1. SEGURANÇA DE TELA ---
 onAuthStateChanged(auth, (user) => {
     if (user) {
         const greeting = document.getElementById("user-greeting");
         if (greeting) greeting.innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
     } else {
-        // Sem utilizador: Volta para o login imediatamente
+        // Se NÃO tem usuário, chuta de volta para o login
         window.location.replace("./index.html");
     }
 });
 
-// --- 2. LOGOUT (Sair) ---
+// --- 2. LOGOUT SEGURO (Sair) ---
 const btnLogout = document.getElementById("btn-logout");
 if (btnLogout) {
     btnLogout.addEventListener("click", async (e) => {
-        e.preventDefault(); // Impede o comportamento padrão
+        e.preventDefault(); 
         try {
-            btnLogout.innerText = "A sair...";
-            await signOut(auth); 
-            window.location.replace("./index.html"); // Força o redirecionamento
+            btnLogout.innerText = "Saindo...";
+            await signOut(auth); // Corta a sessão no Firebase
+            // O redirecionamento acontece automaticamente pelo onAuthStateChanged acima
         } catch (error) {
             console.error("Erro ao sair:", error);
             btnLogout.innerText = "Sair";
-            alert("Erro ao terminar sessão. Verifique a consola.");
         }
     });
 }
 
-// --- 3. CONTROLO DO MODAL ---
+// --- 3. CONTROLE DO MODAL ---
 const modal = document.getElementById("trip-modal");
 const btnCloseModal = document.getElementById("close-modal");
 const spanPlaca = document.getElementById("placa-selecionada");
@@ -50,7 +49,7 @@ if (btnCloseModal) {
     });
 }
 
-// --- 4. CÁLCULOS MATEMÁTICOS ---
+// --- 4. CÁLCULOS MATEMÁTICOS AUTOMÁTICOS ---
 const inputsKm = document.querySelectorAll(".calc-km");
 inputsKm.forEach(input => {
     input.addEventListener("input", () => {
@@ -80,7 +79,7 @@ inputsFinanceiros.forEach(input => {
     });
 });
 
-// --- 5. GUARDAR NO FIRESTORE ---
+// --- 5. SALVAMENTO NO BANCO DE DADOS (FIRESTORE) ---
 const tripForm = document.getElementById("trip-form");
 const btnSaveTrip = document.getElementById("btn-save-trip");
 
@@ -92,7 +91,7 @@ if (tripForm) {
 
         try {
             if (btnSaveTrip) {
-                btnSaveTrip.innerText = "A guardar...";
+                btnSaveTrip.innerText = "Salvando na Nuvem...";
                 btnSaveTrip.disabled = true;
             }
 
@@ -131,21 +130,24 @@ if (tripForm) {
                 criado_em: serverTimestamp()
             };
 
+            // Envia para o banco de dados
             await addDoc(collection(db, "viagens"), novaViagem);
             
-            alert("Viagem guardada com sucesso!");
+            alert("✅ Viagem salva com sucesso!");
+            
+            // Limpa o formulário e fecha
             tripForm.reset();
             document.getElementById("total_despesas_display").innerText = "0.00";
             document.getElementById("total_liquido_display").innerText = "0.00";
             document.getElementById("km_total_display").innerText = "0";
-            modal.classList.remove("active");
+            if (modal) modal.classList.remove("active");
 
         } catch (error) {
-            console.error("Erro a guardar a viagem: ", error);
-            alert("Falha ao guardar. Verifique a consola.");
+            console.error("Erro ao salvar a viagem: ", error);
+            alert("Falha ao salvar. Verifique sua conexão com a internet.");
         } finally {
             if (btnSaveTrip) {
-                btnSaveTrip.innerText = "💾 Guardar Viagem";
+                btnSaveTrip.innerText = "💾 Salvar Viagem";
                 btnSaveTrip.disabled = false;
             }
         }
