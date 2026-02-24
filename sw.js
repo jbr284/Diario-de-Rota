@@ -1,8 +1,6 @@
-// Nome e versão do Cache. Se você mudar o CSS ou JS no futuro, 
-// altere o "v1" para "v2" para forçar o celular a atualizar os arquivos.
-const CACHE_NAME = "diario-de-rota-v1";
+// Mudamos para v2 para forçar a atualização no telemóvel dos utilizadores
+const CACHE_NAME = "diario-de-rota-v2";
 
-// Lista de todos os arquivos que o celular precisa baixar para funcionar offline
 const ASSETS_TO_CACHE = [
     "./",
     "./index.html",
@@ -14,25 +12,22 @@ const ASSETS_TO_CACHE = [
     "./manifest.json"
 ];
 
-// 1. INSTALAÇÃO: Pega os arquivos da lista e salva no celular
 self.addEventListener("install", (event) => {
+    self.skipWaiting(); // Força a instalação imediata do novo Service Worker
     event.waitUntil(
         caches.open(CACHE_NAME).then((cache) => {
-            console.log("🔥 Service Worker: Fazendo cache dos arquivos estáticos");
             return cache.addAll(ASSETS_TO_CACHE);
         })
     );
 });
 
-// 2. ATIVAÇÃO: Limpa caches antigos (útil quando você atualizar para v2, v3...)
 self.addEventListener("activate", (event) => {
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
-                        console.log("🔥 Service Worker: Limpando cache antigo -", cacheName);
-                        return caches.delete(cacheName);
+                        return caches.delete(cacheName); // Limpa as versões v1 antigas
                     }
                 })
             );
@@ -40,15 +35,14 @@ self.addEventListener("activate", (event) => {
     );
 });
 
-// 3. INTERCEPTAÇÃO (FETCH): Onde a mágica offline acontece
+// ESTRATÉGIA NOVA: Network First (Rede Primeiro)
+// Vai sempre à internet buscar o código mais recente. Se não houver internet (estrada), usa a cache.
 self.addEventListener("fetch", (event) => {
-    // Ignora requisições de outras origens e foca só nos arquivos do app
     if (!(event.request.url.indexOf('http') === 0)) return;
 
     event.respondWith(
-        caches.match(event.request).then((response) => {
-            // Se encontrou no cache, retorna do celular. Se não, vai na internet (fetch)
-            return response || fetch(event.request);
+        fetch(event.request).catch(() => {
+            return caches.match(event.request);
         })
     );
 });
