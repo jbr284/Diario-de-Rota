@@ -1,107 +1,35 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>Orçamento de manipulação - Oficina da Fórmula</title>
-  <link rel="manifest" href="/manifest.json" />
-  <style>
-    body {
-      font-family: sans-serif;
-      background-color: #f4f4f4;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
-      margin: 0;
-    }
-    .container {
-      background-color: #add8e6;
-      border: 2px solid black;
-      border-radius: 12px;
-      box-shadow: 0 0 12px rgba(0, 0, 0, 0.2);
-      padding: 40px;
-      width: 100%;
-      max-width: 600px;
-    }
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-    }
-    label {
-      display: block;
-      margin-top: 10px;
-      font-weight: bold;
-      font-size: 1.1em;
-    }
-    input {
-      width: 100%;
-      padding: 12px;
-      margin: 12px 0;
-      border-radius: 8px;
-      border: 1px solid #ccc;
-      font-size: 1em;
-    }
-    .bloco {
-      margin-bottom: 30px;
-    }
-    button {
-      margin-top: 15px;
-      padding: 15px;
-      font-weight: bold;
-      font-size: 1.1em;
-      background: #28a745;
-      color: black;
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      width: 100%;
-    }
-    button:hover {
-      background: #218838;
-    }
-    #resultado {
-      margin-top: 25px;
-      font-size: 1.4em;
-      font-weight: bold;
-      text-align: center;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Diário de Rota</title>
+    <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <div class="container">
-    <h1>Orçamento de manipulação</h1>
-    <div class="bloco">
-      <label>Dosagem Inicial (mg):</label>
-      <input type="number" id="dosagem1">
-      <label>Número de Cápsulas:</label>
-      <input type="number" id="capsulas1">
-      <label>Preço:</label>
-      <input type="number" id="valor1" step="0.01">
-    </div>
-    <div class="bloco">
-      <label>Nova Dosagem (mg):</label>
-      <input type="number" id="dosagem2">
-      <label>Número de Cápsulas:</label>
-      <input type="number" id="capsulas2">
-    </div>
-    <button onclick="calcular()">Calcular</button>
-    <div id="resultado"></div>
-  </div>
-  <script>
-    function calcular() {
-      const d1 = parseFloat(document.getElementById('dosagem1').value);
-      const c1 = parseFloat(document.getElementById('capsulas1').value);
-      const v1 = parseFloat(document.getElementById('valor1').value);
-      const d2 = parseFloat(document.getElementById('dosagem2').value);
-      const c2 = parseFloat(document.getElementById('capsulas2').value);
-      if (d1 && c1 && v1 && d2 && c2) {
-        const proporcao = (d2 * c2) / (d1 * c1);
-        const resultado = (v1 * proporcao).toFixed(2);
-        document.getElementById('resultado').innerText = `R$ ${resultado}`;
-      } else {
-        document.getElementById('resultado').innerText = 'Preencha todos os campos corretamente.';
-      }
-    }
-  </script>
+
+    <main id="login-container" class="container">
+        <header>
+            <h1>🚚 Diário de Rota</h1>
+            <p>Controle de Fretes e Despesas</p>
+        </header>
+
+        <form id="login-form">
+            <div class="input-group">
+                <label for="email">E-mail</label>
+                <input type="email" id="email" placeholder="motorista@exemplo.com" required>
+            </div>
+            
+            <div class="input-group">
+                <label for="senha">Senha</label>
+                <input type="password" id="senha" placeholder="Sua senha de 6 dígitos" required>
+            </div>
+
+            <button type="submit" id="btn-login">Entrar no Sistema</button>
+        </form>
+    </main>
+
+    <script type="module" src="js/firebase-init.js"></script>
+    <script type="module" src="js/auth.js"></script>
 </body>
 </html>
