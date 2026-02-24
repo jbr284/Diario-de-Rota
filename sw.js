@@ -1,5 +1,5 @@
 // Mudamos para v6 para forçar a atualização no telemóvel dos utilizadores
-const CACHE_NAME = "diario-de-rota-v2";
+const CACHE_NAME = "diario-de-rota-v3";
 
 const ASSETS_TO_CACHE = [
     "./",
