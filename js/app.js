@@ -49,10 +49,10 @@ document.querySelectorAll(".truck-card").forEach(button => {
 
         placaAtual = e.currentTarget.getAttribute("data-placa");
         document.querySelectorAll(".placa-label").forEach(el => el.innerText = placaAtual);
-        document.getElementById("history-title").innerText = `📄 Histórico - ${placaAtual}`;
+        document.getElementById("history-title").innerText = `📄 Linha do Tempo - ${placaAtual}`;
         
         actionArea.classList.remove("hidden");
-        carregarHistoricoViagens(auth.currentUser.uid, placaAtual);
+        carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     });
 });
 
@@ -69,7 +69,7 @@ document.querySelectorAll(".close-modal").forEach(btn => {
     });
 });
 
-// === 4. MATEMÁTICA AUTOMÁTICA (APENAS VIAGEM AGORA) ===
+// === 4. MATEMÁTICA AUTOMÁTICA ===
 document.querySelectorAll(".calc-km").forEach(input => {
     input.addEventListener("input", () => {
         const inicio = parseFloat(document.getElementById("km_inicio").value) || 0;
@@ -82,7 +82,7 @@ document.querySelectorAll(".calc-input").forEach(input => {
     input.addEventListener("input", () => {
         const frete = parseFloat(document.getElementById("valor_frete").value) || 0;
         const mot = parseFloat(document.getElementById("desp_mot").value) || 0;
-        const ped = parseFloat(document.getElementById("desp_pedagio").value) || 0; // Removido comb
+        const ped = parseFloat(document.getElementById("desp_pedagio").value) || 0;
 
         const despesas = mot + ped;
         document.getElementById("total_despesas_display").innerText = despesas.toFixed(2);
@@ -90,7 +90,7 @@ document.querySelectorAll(".calc-input").forEach(input => {
     });
 });
 
-// === 5A. SALVAR VIAGEM (SEM COMBUSTÍVEL) ===
+// === 5A. SALVAR VIAGEM ===
 document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!auth.currentUser) return;
@@ -119,11 +119,11 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
         alert("✅ Viagem salva!");
         document.getElementById("trip-form").reset();
         tripModal.classList.remove("active"); tripModal.classList.add("hidden");
-        carregarHistoricoViagens(auth.currentUser.uid, placaAtual);
+        carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     } catch (err) { alert("Erro ao salvar."); } finally { btn.disabled = false; }
 });
 
-// === 5B. SALVAR ABASTECIMENTO (NOVA COLEÇÃO) ===
+// === 5B. SALVAR ABASTECIMENTO ===
 document.getElementById("fuel-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!auth.currentUser) return;
@@ -143,10 +143,11 @@ document.getElementById("fuel-form")?.addEventListener("submit", async (e) => {
         alert("⛽ Abastecimento registrado!");
         document.getElementById("fuel-form").reset();
         fuelModal.classList.remove("active"); fuelModal.classList.add("hidden");
+        carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     } catch (err) { alert("Erro ao salvar."); } finally { btn.disabled = false; }
 });
 
-// === 5C. SALVAR MANUTENÇÃO (NOVA COLEÇÃO) ===
+// === 5C. SALVAR MANUTENÇÃO ===
 document.getElementById("maint-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     if (!auth.currentUser) return;
@@ -167,36 +168,121 @@ document.getElementById("maint-form")?.addEventListener("submit", async (e) => {
         alert("🔧 Manutenção registrada!");
         document.getElementById("maint-form").reset();
         maintModal.classList.remove("active"); maintModal.classList.add("hidden");
+        carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     } catch (err) { alert("Erro ao salvar."); } finally { btn.disabled = false; }
 });
 
-// === 6. BUSCAR HISTÓRICO (SOMENTE VIAGENS POR ENQUANTO) ===
-async function carregarHistoricoViagens(uid, placa) {
+// === 6. BUSCAR HISTÓRICO COMPLETO (LINHA DO TEMPO UNIFICADA) ===
+async function carregarHistoricoCompleto(uid, placa) {
     const container = document.getElementById("accordion-container");
-    container.innerHTML = "<p class='loading-text'>Buscando viagens...</p>";
+    container.innerHTML = "<p class='loading-text'>Sincronizando registros...</p>";
     
     try {
-        const q = query(collection(db, "viagens"), where("motorista_uid", "==", uid), where("veiculo_id", "==", placa));
-        const querySnapshot = await getDocs(q);
+        let historicoUnificado = [];
 
-        if (querySnapshot.empty) { container.innerHTML = `<p class='loading-text'>Nenhuma viagem para ${placa}.</p>`; return; }
-
-        let viagens = [];
-        querySnapshot.forEach((doc) => viagens.push(doc.data()));
-        viagens.sort((a, b) => new Date(b.data_viagem) - new Date(a.data_viagem));
-
-        let html = "";
-        viagens.forEach((v) => {
-            html += `
-            <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <summary style="font-weight: bold; padding: 12px; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
-                    <div><span style="font-size: 13px; color: #7f8c8d;">📅 ${v.data_viagem.split('-').reverse().join('/')}</span><br>
-                    <span style="color: #2c3e50;">📍 ${v.origem} ➔ ${v.destino}</span></div>
-                    <div style="text-align: right;"><span style="color: #2ecc71; font-size: 16px;">💰 R$ ${v.valores.total_liquido.toFixed(2)}</span>
-                    <div style="font-size: 10px; color: #95a5a6;">(Frete Liq)</div></div>
-                </summary>
-            </details>`;
+        // 1. Puxar Viagens
+        const qViagens = query(collection(db, "viagens"), where("motorista_uid", "==", uid), where("veiculo_id", "==", placa));
+        const snapViagens = await getDocs(qViagens);
+        snapViagens.forEach(doc => {
+            let dados = doc.data();
+            dados.tipo = "viagem"; // Etiqueta para o Front-end saber o que é
+            dados.data_ordenacao = dados.data_viagem; 
+            historicoUnificado.push(dados);
         });
+
+        // 2. Puxar Abastecimentos
+        const qAbast = query(collection(db, "abastecimentos"), where("motorista_uid", "==", uid), where("veiculo_id", "==", placa));
+        const snapAbast = await getDocs(qAbast);
+        snapAbast.forEach(doc => {
+            let dados = doc.data();
+            dados.tipo = "abastecimento";
+            dados.data_ordenacao = dados.data;
+            historicoUnificado.push(dados);
+        });
+
+        // 3. Puxar Manutenções
+        const qManut = query(collection(db, "manutencoes"), where("motorista_uid", "==", uid), where("veiculo_id", "==", placa));
+        const snapManut = await getDocs(qManut);
+        snapManut.forEach(doc => {
+            let dados = doc.data();
+            dados.tipo = "manutencao";
+            dados.data_ordenacao = dados.data;
+            historicoUnificado.push(dados);
+        });
+
+        // Se não tiver nada nas 3 gavetas
+        if (historicoUnificado.length === 0) {
+            container.innerHTML = `<p class='loading-text'>Nenhum registro para o caminhão ${placa}.</p>`;
+            return;
+        }
+
+        // Ordenar tudo junto (Do mais novo pro mais velho)
+        historicoUnificado.sort((a, b) => new Date(b.data_ordenacao) - new Date(a.data_ordenacao));
+
+        // Renderizar na tela com designs diferentes para cada tipo
+        let html = "";
+        historicoUnificado.forEach((item) => {
+            
+            if (item.tipo === "viagem") {
+                html += `
+                <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #2ecc71;">
+                    <summary style="font-weight: bold; padding: 12px; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 13px; color: #7f8c8d;">📅 ${item.data_ordenacao.split('-').reverse().join('/')}</span><br>
+                            <span style="color: #2c3e50;">📍 ${item.origem} ➔ ${item.destino}</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="color: #2ecc71; font-size: 16px;">💰 R$ ${item.valores.total_liquido.toFixed(2)}</span>
+                            <div style="font-size: 10px; color: #95a5a6;">(Frete Liq)</div>
+                        </div>
+                    </summary>
+                </details>`;
+            } 
+            
+            else if (item.tipo === "abastecimento") {
+                html += `
+                <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #f39c12;">
+                    <summary style="font-weight: bold; padding: 12px; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 13px; color: #7f8c8d;">📅 ${item.data_ordenacao.split('-').reverse().join('/')}</span><br>
+                            <span style="color: #e67e22;">⛽ Abastecimento</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="color: #e74c3c; font-size: 16px;">➖ R$ ${item.valor_total.toFixed(2)}</span>
+                            <div style="font-size: 10px; color: #95a5a6;">(${item.litros} Litros)</div>
+                        </div>
+                    </summary>
+                    <div style="padding: 15px; border-top: 1px solid #eee; font-size: 14px; color: #34495e;">
+                        <p>🛣️ <strong>Hodômetro:</strong> ${item.km_hodometro} km</p>
+                    </div>
+                </details>`;
+            }
+
+            else if (item.tipo === "manutencao") {
+                html += `
+                <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid #d35400;">
+                    <summary style="font-weight: bold; padding: 12px; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <span style="font-size: 13px; color: #7f8c8d;">📅 ${item.data_ordenacao.split('-').reverse().join('/')}</span><br>
+                            <span style="color: #d35400;">🔧 Oficina</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <span style="color: #e74c3c; font-size: 16px;">➖ R$ ${item.valor_total.toFixed(2)}</span>
+                            <div style="font-size: 10px; color: #95a5a6;">(Manutenção)</div>
+                        </div>
+                    </summary>
+                    <div style="padding: 15px; border-top: 1px solid #eee; font-size: 14px; color: #34495e;">
+                        <p>🛠️ <strong>Serviço:</strong> ${item.servico}</p>
+                        <p>🏢 <strong>Local:</strong> ${item.oficina || 'N/A'}</p>
+                        <p>🛣️ <strong>Hodômetro:</strong> ${item.km_hodometro} km</p>
+                    </div>
+                </details>`;
+            }
+        });
+        
         container.innerHTML = html;
-    } catch (error) { container.innerHTML = "<p style='color: red;'>Erro ao carregar histórico.</p>"; }
+    } catch (error) {
+        console.error("Erro ao buscar histórico:", error);
+        container.innerHTML = "<p style='color: red; text-align: center;'>Erro ao sincronizar os dados.</p>";
+    }
 }
