@@ -3,7 +3,7 @@ import { collection, addDoc, doc, updateDoc, serverTimestamp, query, where, getD
 import { auth, db } from "./firebase-init.js";
 
 const CLOUDINARY_CLOUD_NAME = "dekkidyr4"; 
-const CLOUDINARY_UPLOAD_PRESET = "diariorota"; // Tudo junto e sem acento
+const CLOUDINARY_UPLOAD_PRESET = "diariorota";
 
 const loginView = document.getElementById("login-view");
 const dashboardView = document.getElementById("dashboard-view");
@@ -110,33 +110,31 @@ window.removerAudioExistente = (index) => { audiosExistentes.splice(index, 1); r
 window.removerAudioNovo = (index) => { audiosNovosBlobs.splice(index, 1); renderizarAudiosNaTela(); };
 
 function resetarPlayerDeAudio() {
-    clearInterval(recordingInterval); // Para o relógio se fechar a tela
+    clearInterval(recordingInterval); 
     audiosNovosBlobs = [];
     audiosExistentes = [];
     audioChunks = [];
     renderizarAudiosNaTela();
     
-    // Devolve a aparência original do botão Microfone
     btnRecord.classList.remove("is-recording");
     document.getElementById("record-icon").innerText = "🎤";
-    document.getElementById("record-text").innerText = "Gravar Novo Áudio";
+    document.getElementById("record-text").innerText = "Gravar Áudio";
     document.getElementById("recording-timer").classList.add("hidden");
 }
 
 btnRecord?.addEventListener("click", async () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
-        // AÇÃO 2: PARAR GRAVAÇÃO (CLIQUE NA SETA)
+        // PARAR GRAVAÇÃO
         mediaRecorder.stop();
         clearInterval(recordingInterval);
         
-        // Devolve o visual de Microfone
         btnRecord.classList.remove("is-recording");
         document.getElementById("record-icon").innerText = "🎤";
         document.getElementById("record-text").innerText = "Gravar Novo Áudio";
         document.getElementById("recording-timer").classList.add("hidden");
 
     } else {
-        // AÇÃO 1: INICIAR GRAVAÇÃO (CLIQUE NO MICROFONE)
+        // INICIAR GRAVAÇÃO
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -153,12 +151,10 @@ btnRecord?.addEventListener("click", async () => {
 
             mediaRecorder.start();
             
-            // Transforma o botão na "Seta" do WhatsApp
             btnRecord.classList.add("is-recording");
             document.getElementById("record-icon").innerText = "➔";
             document.getElementById("record-text").innerText = "Anexar";
             
-            // Liga o cronômetro
             recordingSeconds = 0;
             document.getElementById("timer-text").innerText = "00:00";
             document.getElementById("recording-timer").classList.remove("hidden");
@@ -172,15 +168,24 @@ btnRecord?.addEventListener("click", async () => {
     }
 });
 
+// A NOSSA FUNÇÃO ESPIÃ ATUALIZADA
 async function uploadAudioToCloudinary(blob) {
     const formData = new FormData();
-    formData.append('file', blob, 'gravacao.webm');
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('file', blob, 'gravacao.webm');
 
     const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
-        method: 'POST', body: formData
+        method: 'POST', 
+        body: formData
     });
-    if (!response.ok) throw new Error("Falha ao subir áudio");
+    
+    if (!response.ok) {
+        // O ESPIÃO VAI PEGAR O MOTIVO EXATO AQUI
+        const erroDetalhado = await response.json();
+        console.error("🔥 MOTIVO EXATO DO BLOQUEIO CLOUDINARY:", erroDetalhado);
+        throw new Error(erroDetalhado.error ? erroDetalhado.error.message : "Erro desconhecido");
+    }
+    
     const data = await response.json();
     return data.secure_url;
 }
@@ -266,7 +271,10 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
 
         tripModal.classList.remove("active"); tripModal.classList.add("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
-    } catch (err) { alert("Erro ao salvar. Verifique se a internet e a nuvem estão OK."); console.error(err); } 
+    } catch (err) { 
+        alert("Erro ao salvar: " + err.message); 
+        console.error(err); 
+    } 
     finally { btn.disabled = false; btn.innerText = "💾 Salvar Viagem"; }
 });
 
@@ -430,7 +438,6 @@ function abrirEdicaoViagem(id) {
     document.getElementById("desp_pedagio").value = dados.valores.despesa_pedagio || "";
     document.getElementById("km_inicio").value = dados.quilometragem.km_inicio || ""; document.getElementById("km_final").value = dados.quilometragem.km_final || "";
 
-    // Retoma os áudios já salvos na edição
     if (dados.audios && dados.audios.length > 0) { audiosExistentes = [...dados.audios]; } 
     else if (dados.audio_url) { audiosExistentes = [dados.audio_url]; }
     renderizarAudiosNaTela();
