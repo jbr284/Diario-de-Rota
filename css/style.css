@@ -50,9 +50,13 @@ button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size
 .history-section h3 { color: #2c3e50; margin-bottom: 15px; font-size: 18px; }
 .loading-text { color: #7f8c8d; text-align: center; font-size: 14px; padding: 20px 0;}
 
-/* FASE 3: GRUPOS MENSAIS E RESUMO */
-.month-group { margin-bottom: 35px; }
-.month-title { background-color: #2c3e50; color: white; padding: 10px 15px; border-radius: 8px; margin-bottom: 15px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);}
+/* FASE 3: GRUPOS MENSAIS E RESUMO (NOVA SANFONA) */
+.month-group { margin-bottom: 25px; background-color: #ecf0f1; border-radius: 8px; }
+.month-title { background-color: #2c3e50; color: white; padding: 15px; border-radius: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center; transition: 0.3s;}
+.month-title:hover { background-color: #1a252f; }
+.month-title::-webkit-details-marker { display: none; } /* Remove setinha padrão */
+.month-content { padding: 15px 10px; } /* Espaço interno da sanfona aberta */
+
 .monthly-summary-card { background-color: #fdfdfd; border: 2px dashed #bdc3c7; border-radius: 8px; padding: 15px; margin-top: 15px; }
 .monthly-summary-card h5 { color: #2c3e50; font-size: 16px; margin-bottom: 12px; text-align: center; border-bottom: 1px solid #eee; padding-bottom: 8px;}
 .summary-row { display: flex; justify-content: space-between; font-size: 14px; color: #34495e; margin-bottom: 6px; }
