@@ -165,7 +165,7 @@ document.getElementById("maint-form")?.addEventListener("submit", async (e) => {
 });
 
 
-// === 6. FASE 3: O CÉREBRO DO FECHAMENTO MENSAL ===
+// === 6. FASE 3: O CÉREBRO DO FECHAMENTO MENSAL (COM NOVA SANFONA) ===
 async function carregarHistoricoCompleto(uid, placa) {
     const container = document.getElementById("accordion-container");
     container.innerHTML = "<p class='loading-text'>Gerando Balanço Financeiro...</p>";
@@ -194,10 +194,9 @@ async function carregarHistoricoCompleto(uid, placa) {
         const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
         historico.forEach(item => {
-            // Usa "T12:00:00" para evitar bugs de fuso horário brasileiro que jogam o dia para trás
             const dataObj = new Date(item.data_ordenacao + "T12:00:00"); 
             const mesAno = `${nomeMeses[dataObj.getMonth()]} ${dataObj.getFullYear()}`;
-            const chaveOrdem = item.data_ordenacao.substring(0, 7); // Ex: "2026-02"
+            const chaveOrdem = item.data_ordenacao.substring(0, 7); 
 
             if (!mesesAgrupados[chaveOrdem]) {
                 mesesAgrupados[chaveOrdem] = { titulo: mesAno, itens: [], totais: { fretes: 0, despesas: 0, combustivel: 0, manutencao: 0 } };
@@ -205,7 +204,6 @@ async function carregarHistoricoCompleto(uid, placa) {
 
             mesesAgrupados[chaveOrdem].itens.push(item);
 
-            // Soma da Contabilidade do Mês
             if (item.tipo === "viagem") {
                 mesesAgrupados[chaveOrdem].totais.fretes += item.valores.frete_bruto || 0;
                 mesesAgrupados[chaveOrdem].totais.despesas += (item.valores.despesa_motorista || 0) + (item.valores.despesa_pedagio || 0);
@@ -216,16 +214,23 @@ async function carregarHistoricoCompleto(uid, placa) {
             }
         });
 
-        // GERAÇÃO VISUAL DO HTML SEPARADO POR MÊS
         let html = "";
+        let isPrimeiroMes = true; // Controle para abrir apenas a sanfona do mês atual
         
         // Renderiza os meses (do mais recente para o mais antigo)
         Object.keys(mesesAgrupados).sort((a, b) => b.localeCompare(a)).forEach(chave => {
             const grupo = mesesAgrupados[chave];
             const lucroLiquido = grupo.totais.fretes - grupo.totais.despesas - grupo.totais.combustivel - grupo.totais.manutencao;
 
-            html += `<div class="month-group">`;
-            html += `<h4 class="month-title">📅 ${grupo.titulo}</h4>`;
+            // NOVA SANFONA DO MÊS INTEIRO (A mágica da tag <details> aqui)
+            html += `<details class="month-group" ${isPrimeiroMes ? 'open' : ''}>`;
+            html += `
+                <summary class="month-title">
+                    <span>📅 ${grupo.titulo}</span>
+                    <span style="font-size: 14px; color: ${lucroLiquido >= 0 ? '#2ecc71' : '#e74c3c'};">R$ ${lucroLiquido.toFixed(2)} ▼</span>
+                </summary>
+                <div class="month-content">
+            `;
 
             // Renderiza os cartões dentro deste mês
             grupo.itens.forEach((item) => {
@@ -245,7 +250,7 @@ async function carregarHistoricoCompleto(uid, placa) {
                         <div style="padding: 15px; border-top: 1px solid #eee; font-size: 14px; color: #34495e;">
                             <p>📦 <strong>NFs:</strong> ${notas}</p>
                             <p>📅 <strong>Entrega:</strong> ${item.data_entrega ? item.data_entrega.split('-').reverse().join('/') : 'Aguardando...'}</p>
-                            <p>📉 <strong>Despesas Viagem:</strong> R$ ${(item.valores.despesa_motorista + item.valores.despesa_pedagio).toFixed(2)}</p>
+                            <p>📉 <strong>Desp. Viagem:</strong> R$ ${(item.valores.despesa_motorista + item.valores.despesa_pedagio).toFixed(2)}</p>
                             <p>🛣️ <strong>Rodado:</strong> ${item.quilometragem.km_total} km</p>
                             <button class="btn-edit btn-edit-trip" data-id="${item.id}">✏️ Editar Viagem</button>
                         </div>
@@ -271,12 +276,12 @@ async function carregarHistoricoCompleto(uid, placa) {
                 }
             });
 
-            // Adiciona o Resumo Financeiro (O Fechamento) no final do mês
+            // Adiciona o Resumo Financeiro no final da sanfona aberta
             html += `
             <div class="monthly-summary-card">
                 <h5>📊 Fechamento de ${grupo.titulo.split(' ')[0]}</h5>
                 <div class="summary-row"><span>(+) Fretes Brutos:</span> <span>R$ ${grupo.totais.fretes.toFixed(2)}</span></div>
-                <div class="summary-row" style="color:#e74c3c;"><span>(-) Despesas de Viagem:</span> <span>R$ ${grupo.totais.despesas.toFixed(2)}</span></div>
+                <div class="summary-row" style="color:#e74c3c;"><span>(-) Despesas Viagem:</span> <span>R$ ${grupo.totais.despesas.toFixed(2)}</span></div>
                 <div class="summary-row" style="color:#e74c3c;"><span>(-) Combustível:</span> <span>R$ ${grupo.totais.combustivel.toFixed(2)}</span></div>
                 <div class="summary-row" style="color:#e74c3c;"><span>(-) Manutenções:</span> <span>R$ ${grupo.totais.manutencao.toFixed(2)}</span></div>
                 <hr>
@@ -285,7 +290,8 @@ async function carregarHistoricoCompleto(uid, placa) {
                 </div>
             </div>`;
 
-            html += `</div>`; // Fecha a Div do Mês
+            html += `</div></details>`; // Fecha o conteúdo e a sanfona do Mês
+            isPrimeiroMes = false; // Apenas o primeiro mês fica aberto
         });
         
         container.innerHTML = html;
