@@ -2,7 +2,7 @@ import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https:/
 import { collection, addDoc, doc, updateDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { auth, db } from "./firebase-init.js";
 
-const CLOUDINARY_CLOUD_NAME = "dekxidyr4";
+const CLOUDINARY_CLOUD_NAME = "dekxidyr4"; 
 const CLOUDINARY_UPLOAD_PRESET = "diariorota";
 
 const loginView = document.getElementById("login-view");
@@ -124,7 +124,7 @@ function resetarPlayerDeAudio() {
 
 btnRecord?.addEventListener("click", async () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
-        // PARAR GRAVAÇÃO
+        // PARAR GRAVAÇÃO E ENVIAR PARA LISTA
         mediaRecorder.stop();
         clearInterval(recordingInterval);
         
@@ -153,7 +153,7 @@ btnRecord?.addEventListener("click", async () => {
             
             btnRecord.classList.add("is-recording");
             document.getElementById("record-icon").innerText = "➔";
-            document.getElementById("record-text").innerText = "Anexar";
+            document.getElementById("record-text").innerText = "Enviar"; // Alterado conforme pedido
             
             recordingSeconds = 0;
             document.getElementById("timer-text").innerText = "00:00";
@@ -168,7 +168,6 @@ btnRecord?.addEventListener("click", async () => {
     }
 });
 
-// A NOSSA FUNÇÃO ESPIÃ ATUALIZADA
 async function uploadAudioToCloudinary(blob) {
     const formData = new FormData();
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
@@ -180,7 +179,6 @@ async function uploadAudioToCloudinary(blob) {
     });
     
     if (!response.ok) {
-        // O ESPIÃO VAI PEGAR O MOTIVO EXATO AQUI
         const erroDetalhado = await response.json();
         console.error("🔥 MOTIVO EXATO DO BLOQUEIO CLOUDINARY:", erroDetalhado);
         throw new Error(erroDetalhado.error ? erroDetalhado.error.message : "Erro desconhecido");
@@ -385,7 +383,7 @@ async function carregarHistoricoCompleto(uid, placa) {
                             <p>🛣️ <strong>Rodado:</strong> ${item.quilometragem.km_total} km</p>
                             ${obsHtml}
                             ${audioHtml}
-                            <button class="btn-edit btn-edit-trip" data-id="${item.id}">✏️ Editar Viagem</button>
+                            <button class="btn-edit btn-edit-trip" data-id="${item.id}">✏️ Atualizar Viagem</button>
                         </div>
                     </details>`;
                 } 
