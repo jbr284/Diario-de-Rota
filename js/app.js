@@ -2,7 +2,7 @@ import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https:/
 import { collection, addDoc, doc, updateDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { auth, db } from "./firebase-init.js";
 
-const CLOUDINARY_CLOUD_NAME = "dekkxidyr4";
+const CLOUDINARY_CLOUD_NAME = "dekxidyr4";
 const CLOUDINARY_UPLOAD_PRESET = "diariorota";
 
 const loginView = document.getElementById("login-view");
