@@ -177,7 +177,7 @@ async function uploadAudioToCloudinary(blob) {
     formData.append('file', blob, 'gravacao.webm');
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`, {
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
         method: 'POST', body: formData
     });
     if (!response.ok) throw new Error("Falha ao subir áudio");
