@@ -94,8 +94,16 @@
                     </div>
                     <div class="input-group">
                         <label>Relatos de Voz (Anexe quantos quiser)</label>
-                        <button type="button" id="btn-record-audio" class="btn-secondary" style="width: 100%;">🎤 Iniciar Gravação</button>
                         
+                        <div class="audio-controls-wrapper">
+                            <button type="button" id="btn-record-audio" class="btn-whatsapp">
+                                <span id="record-icon">🎤</span> <span id="record-text">Gravar Áudio</span>
+                            </button>
+                            <div id="recording-timer" class="hidden">
+                                <span class="pulse-dot"></span> <span id="timer-text">00:00</span>
+                            </div>
+                        </div>
+
                         <div id="lista-audios-container"></div>
                     </div>
                 </div>
