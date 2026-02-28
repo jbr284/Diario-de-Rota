@@ -14,11 +14,13 @@ let viagensCache = {};
 let destinosArray = [];
 let nfsArray = [];
 
-// Variáveis Globais de Múltiplos Áudios
+// Variáveis Globais de Áudio e Cronômetro
 let mediaRecorder;
 let audioChunks = [];
-let audiosNovosBlobs = []; // Áudios gravados nesta sessão
-let audiosExistentes = []; // URLs de áudios que já estavam salvos no banco
+let audiosNovosBlobs = []; 
+let audiosExistentes = []; 
+let recordingInterval;
+let recordingSeconds = 0;
 
 // === 1. CONTROLADOR DE TELA ===
 onAuthStateChanged(auth, (user) => {
@@ -59,7 +61,7 @@ document.querySelectorAll(".truck-card").forEach(button => {
     });
 });
 
-// Listas Dinâmicas (NFs e Destinos)
+// Listas Dinâmicas
 function renderizarListas() {
     document.getElementById("lista-destinos").innerHTML = destinosArray.map((d, index) => `<li>${d} <span onclick="removerDestino(${index})">&times;</span></li>`).join('');
     document.getElementById("lista-nfs").innerHTML = nfsArray.map((nf, index) => `<li>${nf} <span onclick="removerNf(${index})">&times;</span></li>`).join('');
@@ -76,20 +78,24 @@ document.getElementById("btn-add-nf")?.addEventListener("click", () => {
     if(input.value.trim() !== "") { nfsArray.push(input.value.trim()); input.value = ""; renderizarListas(); }
 });
 
-// === FASE 4: MOTOR DE GRAVAÇÃO DE MÚLTIPLOS ÁUDIOS ===
+// === FASE 4: MOTOR DE ÁUDIO COM CRONÔMETRO ===
 const btnRecord = document.getElementById("btn-record-audio");
 const containerAudios = document.getElementById("lista-audios-container");
 
+function formatTime(sec) {
+    const m = Math.floor(sec / 60).toString().padStart(2, '0');
+    const s = (sec % 60).toString().padStart(2, '0');
+    return `${m}:${s}`;
+}
+
 function renderizarAudiosNaTela() {
     let html = "";
-    // Primeiro lista os que já estavam salvos
     audiosExistentes.forEach((url, index) => {
         html += `<div class="audio-item">
                     <audio controls src="${url}" class="audio-player"></audio>
                     <button type="button" class="btn-delete-audio" onclick="removerAudioExistente(${index})">🗑️</button>
                  </div>`;
     });
-    // Depois lista os que foram gravados agora
     audiosNovosBlobs.forEach((blob, index) => {
         const tempUrl = URL.createObjectURL(blob);
         html += `<div class="audio-item">
@@ -104,22 +110,33 @@ window.removerAudioExistente = (index) => { audiosExistentes.splice(index, 1); r
 window.removerAudioNovo = (index) => { audiosNovosBlobs.splice(index, 1); renderizarAudiosNaTela(); };
 
 function resetarPlayerDeAudio() {
+    clearInterval(recordingInterval); // Para o relógio se fechar a tela
     audiosNovosBlobs = [];
     audiosExistentes = [];
     audioChunks = [];
     renderizarAudiosNaTela();
-    btnRecord.classList.remove("btn-recording");
-    btnRecord.innerText = "🎤 Iniciar Gravação";
+    
+    // Devolve a aparência original do botão Microfone
+    btnRecord.classList.remove("is-recording");
+    document.getElementById("record-icon").innerText = "🎤";
+    document.getElementById("record-text").innerText = "Gravar Novo Áudio";
+    document.getElementById("recording-timer").classList.add("hidden");
 }
 
 btnRecord?.addEventListener("click", async () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
-        // Ação de Parar (Anexar)
+        // AÇÃO 2: PARAR GRAVAÇÃO (CLIQUE NA SETA)
         mediaRecorder.stop();
-        btnRecord.classList.remove("btn-recording");
-        btnRecord.innerText = "🎤 Iniciar Gravação"; // Volta ao normal para permitir outra gravação
+        clearInterval(recordingInterval);
+        
+        // Devolve o visual de Microfone
+        btnRecord.classList.remove("is-recording");
+        document.getElementById("record-icon").innerText = "🎤";
+        document.getElementById("record-text").innerText = "Gravar Novo Áudio";
+        document.getElementById("recording-timer").classList.add("hidden");
+
     } else {
-        // Ação de Iniciar Gravação
+        // AÇÃO 1: INICIAR GRAVAÇÃO (CLIQUE NO MICROFONE)
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -129,15 +146,29 @@ btnRecord?.addEventListener("click", async () => {
             
             mediaRecorder.onstop = () => {
                 const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                audiosNovosBlobs.push(blob); // Anexa na lista de envios
-                renderizarAudiosNaTela();    // Mostra na tela imediatamente
-                stream.getTracks().forEach(track => track.stop()); // Desliga microfone
+                audiosNovosBlobs.push(blob); 
+                renderizarAudiosNaTela();    
+                stream.getTracks().forEach(track => track.stop()); 
             };
 
             mediaRecorder.start();
-            btnRecord.classList.add("btn-recording");
-            btnRecord.innerText = "⏹️ Finalizar e Anexar";
-        } catch (err) { alert("Permissão de microfone negada ou indisponível. Verifique as permissões do seu celular."); }
+            
+            // Transforma o botão na "Seta" do WhatsApp
+            btnRecord.classList.add("is-recording");
+            document.getElementById("record-icon").innerText = "➔";
+            document.getElementById("record-text").innerText = "Anexar";
+            
+            // Liga o cronômetro
+            recordingSeconds = 0;
+            document.getElementById("timer-text").innerText = "00:00";
+            document.getElementById("recording-timer").classList.remove("hidden");
+            
+            recordingInterval = setInterval(() => {
+                recordingSeconds++;
+                document.getElementById("timer-text").innerText = formatTime(recordingSeconds);
+            }, 1000);
+
+        } catch (err) { alert("Permissão de microfone negada ou indisponível."); }
     }
 });
 
@@ -149,7 +180,7 @@ async function uploadAudioToCloudinary(blob) {
     const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`, {
         method: 'POST', body: formData
     });
-    if (!response.ok) throw new Error("Falha ao subir áudio no Cloudinary");
+    if (!response.ok) throw new Error("Falha ao subir áudio");
     const data = await response.json();
     return data.secure_url;
 }
@@ -194,7 +225,7 @@ document.querySelectorAll(".calc-km").forEach(input => {
     });
 });
 
-// === SALVAMENTO NO FIRESTORE (COM UPLOAD MÚLTIPLO) ===
+// === SALVAMENTO NO FIRESTORE ===
 document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
     e.preventDefault(); if (!auth.currentUser) return;
     const btn = document.getElementById("btn-save-trip"); const editId = document.getElementById("edit-trip-id").value; btn.disabled = true;
@@ -202,16 +233,13 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
     try {
         let urlsGeradasNaNuvem = [];
 
-        // Se gravou áudios novos, sobe todos eles ao mesmo tempo para o Cloudinary
         if (audiosNovosBlobs.length > 0) {
-            btn.innerText = `⏳ Enviando ${audiosNovosBlobs.length} áudio(s)...`;
+            btn.innerText = `⏳ Enviando ${audiosNovosBlobs.length} áudio(s) para a Nuvem...`;
             const uploadPromises = audiosNovosBlobs.map(blob => uploadAudioToCloudinary(blob));
-            urlsGeradasNaNuvem = await Promise.all(uploadPromises); // Espera todos subirem
+            urlsGeradasNaNuvem = await Promise.all(uploadPromises); 
         }
 
-        // Junta os links antigos (se for edição) com os links novos
         const todasAsUrlsDeAudio = [...audiosExistentes, ...urlsGeradasNaNuvem];
-
         btn.innerText = "💾 Salvando Dados...";
 
         const dadosViagem = {
@@ -221,7 +249,7 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
             origem: document.getElementById("origem").value,
             destinos: destinosArray, nfs: nfsArray,
             observacoes: document.getElementById("observacoes").value,
-            audios: todasAsUrlsDeAudio, // Salvando como um Array de Links
+            audios: todasAsUrlsDeAudio, 
             valores: {
                 frete_bruto: parseFloat(document.getElementById("valor_frete").value) || 0,
                 despesa_motorista: parseFloat(document.getElementById("desp_mot").value) || 0,
@@ -238,7 +266,7 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
 
         tripModal.classList.remove("active"); tripModal.classList.add("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
-    } catch (err) { alert("Erro ao salvar. Verifique se as credenciais do Cloudinary estão corretas."); console.error(err); } 
+    } catch (err) { alert("Erro ao salvar. Verifique se a internet e a nuvem estão OK."); console.error(err); } 
     finally { btn.disabled = false; btn.innerText = "💾 Salvar Viagem"; }
 });
 
@@ -323,7 +351,6 @@ async function carregarHistoricoCompleto(uid, placa) {
                     
                     let obsHtml = item.observacoes ? `<p style="margin-top:10px; padding: 10px; background: #fdfdfd; border-radius: 5px; font-style: italic; color: #7f8c8d; font-size: 13px;">📝 "${item.observacoes}"</p>` : "";
                     
-                    // Tratamento para exibir múltiplos áudios ou o áudio antigo da versão anterior
                     let audioHtml = "";
                     if (item.audios && item.audios.length > 0) {
                         audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relatos de Áudio:</p>`;
@@ -403,7 +430,7 @@ function abrirEdicaoViagem(id) {
     document.getElementById("desp_pedagio").value = dados.valores.despesa_pedagio || "";
     document.getElementById("km_inicio").value = dados.quilometragem.km_inicio || ""; document.getElementById("km_final").value = dados.quilometragem.km_final || "";
 
-    // Retrocompatibilidade e Múltiplos Áudios ao Editar
+    // Retoma os áudios já salvos na edição
     if (dados.audios && dados.audios.length > 0) { audiosExistentes = [...dados.audios]; } 
     else if (dados.audio_url) { audiosExistentes = [dados.audio_url]; }
     renderizarAudiosNaTela();
