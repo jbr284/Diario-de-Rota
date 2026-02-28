@@ -87,6 +87,20 @@
                 </div>
 
                 <div class="form-section">
+                    <h3>📝 Adversidades no Caminho</h3>
+                    <div class="input-group">
+                        <label>Observações Escritas</label>
+                        <textarea id="observacoes" placeholder="Relate avarias, gastos não planejados..."></textarea>
+                    </div>
+                    <div class="input-group">
+                        <label>Relato de Voz (Opcional)</label>
+                        <button type="button" id="btn-record-audio" class="btn-secondary" style="width: 100%;">🎤 Gravar Áudio</button>
+                        <audio id="audio-playback" controls class="audio-player hidden"></audio>
+                        <button type="button" id="btn-remove-audio" class="btn-logout hidden" style="margin-top: 5px; width: 100%;">🗑️ Remover Áudio</button>
+                    </div>
+                </div>
+
+                <div class="form-section">
                     <h3>💰 Receitas e Despesas</h3>
                     <div class="input-group"><label>Frete Bruto (R$)</label><input type="number" step="0.01" id="valor_frete" class="calc-input"></div>
                     <div class="input-group"><label>Desp. Motorista (R$)</label><input type="number" step="0.01" id="desp_mot" class="calc-input"></div>
