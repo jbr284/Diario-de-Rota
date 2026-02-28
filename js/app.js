@@ -2,7 +2,6 @@ import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https:/
 import { collection, addDoc, doc, updateDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { auth, db } from "./firebase-init.js";
 
-// === CREDENCIAIS DO CLOUDINARY (PRONTAS!) ===
 const CLOUDINARY_CLOUD_NAME = "dekkidyr4"; 
 const CLOUDINARY_UPLOAD_PRESET = "diario_rota";
 
@@ -15,11 +14,11 @@ let viagensCache = {};
 let destinosArray = [];
 let nfsArray = [];
 
-// Variáveis Globais de Áudio
+// Variáveis Globais de Múltiplos Áudios
 let mediaRecorder;
 let audioChunks = [];
-let audioBlob = null;
-let audioUrlExistente = ""; 
+let audiosNovosBlobs = []; // Áudios gravados nesta sessão
+let audiosExistentes = []; // URLs de áudios que já estavam salvos no banco
 
 // === 1. CONTROLADOR DE TELA ===
 onAuthStateChanged(auth, (user) => {
@@ -60,7 +59,7 @@ document.querySelectorAll(".truck-card").forEach(button => {
     });
 });
 
-// Listas Dinâmicas
+// Listas Dinâmicas (NFs e Destinos)
 function renderizarListas() {
     document.getElementById("lista-destinos").innerHTML = destinosArray.map((d, index) => `<li>${d} <span onclick="removerDestino(${index})">&times;</span></li>`).join('');
     document.getElementById("lista-nfs").innerHTML = nfsArray.map((nf, index) => `<li>${nf} <span onclick="removerNf(${index})">&times;</span></li>`).join('');
@@ -77,28 +76,50 @@ document.getElementById("btn-add-nf")?.addEventListener("click", () => {
     if(input.value.trim() !== "") { nfsArray.push(input.value.trim()); input.value = ""; renderizarListas(); }
 });
 
-// === FASE 4: MOTOR DE GRAVAÇÃO DE ÁUDIO ===
+// === FASE 4: MOTOR DE GRAVAÇÃO DE MÚLTIPLOS ÁUDIOS ===
 const btnRecord = document.getElementById("btn-record-audio");
-const audioPlayback = document.getElementById("audio-playback");
-const btnRemoveAudio = document.getElementById("btn-remove-audio");
+const containerAudios = document.getElementById("lista-audios-container");
+
+function renderizarAudiosNaTela() {
+    let html = "";
+    // Primeiro lista os que já estavam salvos
+    audiosExistentes.forEach((url, index) => {
+        html += `<div class="audio-item">
+                    <audio controls src="${url}" class="audio-player"></audio>
+                    <button type="button" class="btn-delete-audio" onclick="removerAudioExistente(${index})">🗑️</button>
+                 </div>`;
+    });
+    // Depois lista os que foram gravados agora
+    audiosNovosBlobs.forEach((blob, index) => {
+        const tempUrl = URL.createObjectURL(blob);
+        html += `<div class="audio-item">
+                    <audio controls src="${tempUrl}" class="audio-player"></audio>
+                    <button type="button" class="btn-delete-audio" onclick="removerAudioNovo(${index})">🗑️</button>
+                 </div>`;
+    });
+    containerAudios.innerHTML = html;
+}
+
+window.removerAudioExistente = (index) => { audiosExistentes.splice(index, 1); renderizarAudiosNaTela(); };
+window.removerAudioNovo = (index) => { audiosNovosBlobs.splice(index, 1); renderizarAudiosNaTela(); };
 
 function resetarPlayerDeAudio() {
-    audioBlob = null;
-    audioUrlExistente = "";
+    audiosNovosBlobs = [];
+    audiosExistentes = [];
     audioChunks = [];
-    audioPlayback.src = "";
-    audioPlayback.classList.add("hidden");
-    btnRemoveAudio.classList.add("hidden");
-    btnRecord.classList.remove("hidden", "btn-recording");
-    btnRecord.innerText = "🎤 Gravar Áudio";
+    renderizarAudiosNaTela();
+    btnRecord.classList.remove("btn-recording");
+    btnRecord.innerText = "🎤 Iniciar Gravação";
 }
 
 btnRecord?.addEventListener("click", async () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
+        // Ação de Parar (Anexar)
         mediaRecorder.stop();
         btnRecord.classList.remove("btn-recording");
-        btnRecord.classList.add("hidden");
+        btnRecord.innerText = "🎤 Iniciar Gravação"; // Volta ao normal para permitir outra gravação
     } else {
+        // Ação de Iniciar Gravação
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -107,34 +128,27 @@ btnRecord?.addEventListener("click", async () => {
             mediaRecorder.ondataavailable = event => { if (event.data.size > 0) audioChunks.push(event.data); };
             
             mediaRecorder.onstop = () => {
-                audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-                const audioUrl = URL.createObjectURL(audioBlob);
-                audioPlayback.src = audioUrl;
-                audioPlayback.classList.remove("hidden");
-                btnRemoveAudio.classList.remove("hidden");
-                stream.getTracks().forEach(track => track.stop());
+                const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                audiosNovosBlobs.push(blob); // Anexa na lista de envios
+                renderizarAudiosNaTela();    // Mostra na tela imediatamente
+                stream.getTracks().forEach(track => track.stop()); // Desliga microfone
             };
 
             mediaRecorder.start();
             btnRecord.classList.add("btn-recording");
-            btnRecord.innerText = "⏹️ Parar Gravação...";
+            btnRecord.innerText = "⏹️ Finalizar e Anexar";
         } catch (err) { alert("Permissão de microfone negada ou indisponível. Verifique as permissões do seu celular."); }
     }
 });
 
-btnRemoveAudio?.addEventListener("click", () => { resetarPlayerDeAudio(); });
-
-// Função de Upload para o Cloudinary
 async function uploadAudioToCloudinary(blob) {
     const formData = new FormData();
     formData.append('file', blob, 'gravacao.webm');
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
 
     const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`, {
-        method: 'POST',
-        body: formData
+        method: 'POST', body: formData
     });
-    
     if (!response.ok) throw new Error("Falha ao subir áudio no Cloudinary");
     const data = await response.json();
     return data.secure_url;
@@ -180,19 +194,23 @@ document.querySelectorAll(".calc-km").forEach(input => {
     });
 });
 
-// === SALVAMENTO NO FIRESTORE COM CLOUDINARY ===
+// === SALVAMENTO NO FIRESTORE (COM UPLOAD MÚLTIPLO) ===
 document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
     e.preventDefault(); if (!auth.currentUser) return;
     const btn = document.getElementById("btn-save-trip"); const editId = document.getElementById("edit-trip-id").value; btn.disabled = true;
 
     try {
-        let finalAudioUrl = audioUrlExistente;
+        let urlsGeradasNaNuvem = [];
 
-        // Sobe pro Cloudinary primeiro se tiver gravado algo novo
-        if (audioBlob) {
-            btn.innerText = "⏳ Enviando Áudio para a Nuvem...";
-            finalAudioUrl = await uploadAudioToCloudinary(audioBlob);
+        // Se gravou áudios novos, sobe todos eles ao mesmo tempo para o Cloudinary
+        if (audiosNovosBlobs.length > 0) {
+            btn.innerText = `⏳ Enviando ${audiosNovosBlobs.length} áudio(s)...`;
+            const uploadPromises = audiosNovosBlobs.map(blob => uploadAudioToCloudinary(blob));
+            urlsGeradasNaNuvem = await Promise.all(uploadPromises); // Espera todos subirem
         }
+
+        // Junta os links antigos (se for edição) com os links novos
+        const todasAsUrlsDeAudio = [...audiosExistentes, ...urlsGeradasNaNuvem];
 
         btn.innerText = "💾 Salvando Dados...";
 
@@ -203,7 +221,7 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
             origem: document.getElementById("origem").value,
             destinos: destinosArray, nfs: nfsArray,
             observacoes: document.getElementById("observacoes").value,
-            audio_url: finalAudioUrl,
+            audios: todasAsUrlsDeAudio, // Salvando como um Array de Links
             valores: {
                 frete_bruto: parseFloat(document.getElementById("valor_frete").value) || 0,
                 despesa_motorista: parseFloat(document.getElementById("desp_mot").value) || 0,
@@ -220,7 +238,7 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
 
         tripModal.classList.remove("active"); tripModal.classList.add("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
-    } catch (err) { alert("Erro ao salvar o áudio ou a viagem."); console.error(err); } 
+    } catch (err) { alert("Erro ao salvar. Verifique se as credenciais do Cloudinary estão corretas."); console.error(err); } 
     finally { btn.disabled = false; btn.innerText = "💾 Salvar Viagem"; }
 });
 
@@ -304,7 +322,18 @@ async function carregarHistoricoCompleto(uid, placa) {
                     let statusColor = item.status === "Concluída" ? "#2ecc71" : "#f39c12";
                     
                     let obsHtml = item.observacoes ? `<p style="margin-top:10px; padding: 10px; background: #fdfdfd; border-radius: 5px; font-style: italic; color: #7f8c8d; font-size: 13px;">📝 "${item.observacoes}"</p>` : "";
-                    let audioHtml = item.audio_url ? `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relato de Áudio:</p><audio controls src="${item.audio_url}" class="audio-player"></audio></div>` : "";
+                    
+                    // Tratamento para exibir múltiplos áudios ou o áudio antigo da versão anterior
+                    let audioHtml = "";
+                    if (item.audios && item.audios.length > 0) {
+                        audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relatos de Áudio:</p>`;
+                        item.audios.forEach(url => {
+                            audioHtml += `<audio controls src="${url}" class="audio-player" style="margin-bottom: 5px;"></audio>`;
+                        });
+                        audioHtml += `</div>`;
+                    } else if (item.audio_url) {
+                        audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relato de Áudio:</p><audio controls src="${item.audio_url}" class="audio-player"></audio></div>`;
+                    }
 
                     html += `
                     <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid ${statusColor};">
@@ -374,13 +403,10 @@ function abrirEdicaoViagem(id) {
     document.getElementById("desp_pedagio").value = dados.valores.despesa_pedagio || "";
     document.getElementById("km_inicio").value = dados.quilometragem.km_inicio || ""; document.getElementById("km_final").value = dados.quilometragem.km_final || "";
 
-    if (dados.audio_url) {
-        audioUrlExistente = dados.audio_url;
-        audioPlayback.src = audioUrlExistente;
-        audioPlayback.classList.remove("hidden");
-        btnRemoveAudio.classList.remove("hidden");
-        btnRecord.classList.add("hidden");
-    }
+    // Retrocompatibilidade e Múltiplos Áudios ao Editar
+    if (dados.audios && dados.audios.length > 0) { audiosExistentes = [...dados.audios]; } 
+    else if (dados.audio_url) { audiosExistentes = [dados.audio_url]; }
+    renderizarAudiosNaTela();
 
     atualizarTotais(); document.getElementById("btn-save-trip").innerText = "🔄 Atualizar Viagem";
     tripModal.classList.remove("hidden"); tripModal.classList.add("active");
