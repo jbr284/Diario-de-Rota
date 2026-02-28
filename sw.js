@@ -1,4 +1,4 @@
-const CACHE_NAME = "diario-rota-v2";
+const CACHE_NAME = "diario-rota-v3";
 
 const urlsToCache = [
   "./",
@@ -7,7 +7,7 @@ const urlsToCache = [
   "./js/app.js",
   "./js/firebase-init.js",
   "./manifest.json",
-  "./assets/icon.svg"
+  "./assets/icon.png"
 ];
 
 self.addEventListener("install", (event) => {
