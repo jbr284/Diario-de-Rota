@@ -38,7 +38,7 @@
         </section>
 
         <div id="action-area" class="hidden action-buttons-container">
-            <button id="btn-open-trip" class="btn-full">➕ Registrar Viagem</button>
+            <button id="btn-open-trip" class="btn-full">➕ Registrar Nova Viagem</button>
             <button id="btn-open-fuel" class="btn-half btn-fuel">⛽ Abastecimento</button>
             <button id="btn-open-maint" class="btn-half btn-maint">🔧 Manutenção</button>
         </div>
@@ -46,7 +46,7 @@
         <hr class="divider">
 
         <section class="history-section">
-            <h3 id="history-title">📄 Histórico</h3>
+            <h3 id="history-title">📄 Linha do Tempo</h3>
             <div id="accordion-container">
                 <p class="loading-text">Selecione um caminhão acima.</p>
             </div>
@@ -56,34 +56,53 @@
     <div id="trip-modal" class="modal hidden">
         <div class="modal-content">
             <span class="close-btn close-modal">&times;</span>
-            <h2 style="margin-bottom: 15px;">Nova Viagem - <span class="placa-label"></span></h2>
+            <h2 id="trip-modal-title" style="margin-bottom: 15px;">Nova Viagem - <span class="placa-label"></span></h2>
             
             <form id="trip-form">
+                <input type="hidden" id="edit-trip-id" value="">
+
                 <div class="form-section">
-                    <h3>📍 Rota e Dados</h3>
-                    <div class="input-group"><label>Data Carregamento</label><input type="date" id="data_viagem" required></div>
-                    <div class="input-group"><label>Origem</label><input type="text" id="origem" required></div>
-                    <div class="input-group"><label>Destino</label><input type="text" id="destino" required></div>
-                    <div class="input-group"><label>NF</label><input type="text" id="nf"></div>
+                    <h3>📍 Rota e Datas</h3>
+                    <div class="input-group"><label>Data de Carregamento</label><input type="date" id="data_viagem" required></div>
+                    <div class="input-group"><label>Data de Entrega (Opcional)</label><input type="date" id="data_entrega"></div>
+                    <div class="input-group"><label>Origem (Carregamento)</label><input type="text" id="origem" placeholder="Ex: São Paulo - SP" required></div>
+                    
+                    <div class="input-group">
+                        <label>Destinos de Entrega</label>
+                        <div class="input-flex">
+                            <input type="text" id="destino_input" placeholder="Ex: Rio de Janeiro - RJ">
+                            <button type="button" id="btn-add-destino" class="btn-secondary">Add</button>
+                        </div>
+                        <ul id="lista-destinos" class="dynamic-list"></ul>
+                    </div>
+
+                    <div class="input-group">
+                        <label>Notas Fiscais</label>
+                        <div class="input-flex">
+                            <input type="text" id="nf_input" placeholder="Ex: 123456">
+                            <button type="button" id="btn-add-nf" class="btn-secondary">Add</button>
+                        </div>
+                        <ul id="lista-nfs" class="dynamic-list"></ul>
+                    </div>
                 </div>
 
                 <div class="form-section">
-                    <h3>💰 Receitas e Despesas</h3>
-                    <div class="input-group"><label>Frete Bruto (R$)</label><input type="number" step="0.01" id="valor_frete" class="calc-input" required></div>
-                    <div class="input-group"><label>Desp. Motorista (R$)</label><input type="number" step="0.01" id="desp_mot" class="calc-input" value="0"></div>
-                    <div class="input-group"><label>Pedágio (R$)</label><input type="number" step="0.01" id="desp_pedagio" class="calc-input" value="0"></div>
+                    <h3>💰 Receitas e Despesas (Preencha quando fechar a viagem)</h3>
+                    <div class="input-group"><label>Frete Bruto (R$)</label><input type="number" step="0.01" id="valor_frete" class="calc-input"></div>
+                    <div class="input-group"><label>Desp. Motorista (R$)</label><input type="number" step="0.01" id="desp_mot" class="calc-input"></div>
+                    <div class="input-group"><label>Pedágio (R$)</label><input type="number" step="0.01" id="desp_pedagio" class="calc-input"></div>
                 </div>
 
                 <div class="form-section">
                     <h3>🛣️ Quilometragem</h3>
-                    <div class="input-group"><label>Km Início</label><input type="number" id="km_inicio" class="calc-km"></div>
+                    <div class="input-group"><label>Km Inicial</label><input type="number" id="km_inicio" class="calc-km"></div>
                     <div class="input-group"><label>Km Final</label><input type="number" id="km_final" class="calc-km"></div>
-                    <p class="result-text">Km Total: <strong id="km_total_display">0</strong> km</p>
+                    <p class="result-text">Rodado: <strong id="km_total_display">0</strong> km</p>
                 </div>
 
                 <div class="summary-section">
-                    <h3>📊 Fechamento</h3>
-                    <p>Despesas da Viagem: R$ <span id="total_despesas_display">0.00</span></p>
+                    <h3>📊 Fechamento Parcial/Total</h3>
+                    <p>Despesas: R$ <span id="total_despesas_display">0.00</span></p>
                     <p class="highlight-net">LÍQUIDO: R$ <span id="total_liquido_display">0.00</span></p>
                 </div>
 
@@ -96,15 +115,14 @@
         <div class="modal-content">
             <span class="close-btn close-modal">&times;</span>
             <h2 style="margin-bottom: 15px; color: #e67e22;">⛽ Abastecer - <span class="placa-label"></span></h2>
-            
             <form id="fuel-form">
                 <div class="form-section">
                     <div class="input-group"><label>Data</label><input type="date" id="fuel-data" required></div>
-                    <div class="input-group"><label>Km do Caminhão (Hodômetro)</label><input type="number" id="fuel-km" required></div>
-                    <div class="input-group"><label>Litros Abastecidos</label><input type="number" step="0.01" id="fuel-litros" required></div>
-                    <div class="input-group"><label>Valor Total Pago (R$)</label><input type="number" step="0.01" id="fuel-valor" required></div>
+                    <div class="input-group"><label>Km do Caminhão</label><input type="number" id="fuel-km" required></div>
+                    <div class="input-group"><label>Litros</label><input type="number" step="0.01" id="fuel-litros" required></div>
+                    <div class="input-group"><label>Valor Pago (R$)</label><input type="number" step="0.01" id="fuel-valor" required></div>
                 </div>
-                <button type="submit" id="btn-save-fuel" style="background-color: #f39c12; color: white;">💾 Salvar Abastecimento</button>
+                <button type="submit" id="btn-save-fuel" style="background-color: #f39c12; color: white;">💾 Salvar</button>
             </form>
         </div>
     </div>
@@ -113,26 +131,21 @@
         <div class="modal-content">
             <span class="close-btn close-modal">&times;</span>
             <h2 style="margin-bottom: 15px; color: #d35400;">🔧 Manutenção - <span class="placa-label"></span></h2>
-            
             <form id="maint-form">
                 <div class="form-section">
                     <div class="input-group"><label>Data</label><input type="date" id="maint-data" required></div>
                     <div class="input-group"><label>Km do Caminhão</label><input type="number" id="maint-km" required></div>
-                    <div class="input-group"><label>Serviço ou Peça</label><input type="text" id="maint-servico" placeholder="Ex: Troca de Óleo" required></div>
-                    <div class="input-group"><label>Oficina/Local</label><input type="text" id="maint-oficina"></div>
-                    <div class="input-group"><label>Valor Total (R$)</label><input type="number" step="0.01" id="maint-valor" required></div>
+                    <div class="input-group"><label>Serviço/Peça</label><input type="text" id="maint-servico" required></div>
+                    <div class="input-group"><label>Oficina</label><input type="text" id="maint-oficina"></div>
+                    <div class="input-group"><label>Valor (R$)</label><input type="number" step="0.01" id="maint-valor" required></div>
                 </div>
-                <button type="submit" id="btn-save-maint" style="background-color: #d35400; color: white;">💾 Salvar Manutenção</button>
+                <button type="submit" id="btn-save-maint" style="background-color: #d35400; color: white;">💾 Salvar</button>
             </form>
         </div>
     </div>
 
     <script type="module" src="js/firebase-init.js"></script>
     <script type="module" src="js/app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js'));
-        }
-    </script>
+    <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js')); }</script>
 </body>
 </html>
