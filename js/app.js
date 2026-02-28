@@ -3,7 +3,7 @@ import { collection, addDoc, doc, updateDoc, serverTimestamp, query, where, getD
 import { auth, db } from "./firebase-init.js";
 
 const CLOUDINARY_CLOUD_NAME = "dekkidyr4"; 
-const CLOUDINARY_UPLOAD_PRESET = "diario_rota";
+const CLOUDINARY_UPLOAD_PRESET = "diário_rota";
 
 const loginView = document.getElementById("login-view");
 const dashboardView = document.getElementById("dashboard-view");
