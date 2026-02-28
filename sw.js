@@ -1,4 +1,4 @@
-// Mudamos para v7 para forçar a atualização no telemóvel dos utilizadores
+// Mudamos para v8 para forçar a atualização no telemóvel dos utilizadores
 const CACHE_NAME = "diario-de-rota-v3";
 
 const ASSETS_TO_CACHE = [
