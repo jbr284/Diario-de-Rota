@@ -1,4 +1,4 @@
-const CACHE_NAME = "diario-rota-v3";
+const CACHE_NAME = "diario-rota-v4";
 
 const urlsToCache = [
   "./",
