@@ -31,7 +31,8 @@ onAuthStateChanged(auth, (user) => {
         const dataHoje = new Date().toLocaleDateString('pt-BR', opcoesData);
         document.getElementById("current-date").innerText = dataHoje;
         
-        let nomePiloto = user.email.split('@')[0];
+        // Pega o nome no Firebase ou usa o email como fallback
+        let nomePiloto = user.displayName || user.email.split('@')[0];
         nomePiloto = nomePiloto.charAt(0).toUpperCase() + nomePiloto.slice(1);
         document.getElementById("user-greeting").innerText = `Olá, ${nomePiloto}! 🚚`;
     } else {
@@ -39,7 +40,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// === 2. LOGIN E LOGOUT ===
+// === 2. LOGIN E LOGOUT (Blindado) ===
 document.getElementById("login-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
@@ -70,13 +71,10 @@ document.querySelectorAll(".truck-card").forEach(button => {
     });
 });
 
-// NOVO: Função do Botão Voltar
+// Função do Botão Voltar
 document.getElementById("btn-back-home")?.addEventListener("click", () => {
-    // Esconde o painel do veículo
     panelVeiculo.classList.add("hidden");
-    // Remove a seleção visual (borda azul) das placas
     document.querySelectorAll(".truck-card").forEach(btn => btn.classList.remove("active-truck"));
-    // Limpa a placa atual da memória
     placaAtual = "";
 });
 
