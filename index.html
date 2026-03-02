@@ -9,7 +9,7 @@
     <link rel="icon" type="image/png" href="./assets/icon-192.png">
     <link rel="apple-touch-icon" href="./assets/icon-192.png">
     
-    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon">
+    <link rel="shortcut icon" href="data:image/x-icon;," type="image/x-icon"> 
     
     <link rel="manifest" href="./manifest.json">
     <link rel="stylesheet" href="css/style.css">
@@ -32,8 +32,9 @@
     <main id="dashboard-view" class="container hidden">
         <header class="dashboard-header">
             <div class="user-info">
+                <p id="current-date" class="date-display"></p>
                 <h2 id="user-greeting">Olá, Motorista!</h2>
-                <p>Selecione o veículo abaixo:</p>
+                <p class="subtitle">Selecione o veículo abaixo:</p>
             </div>
             <button id="btn-logout" class="btn-logout">Sair</button>
         </header>
@@ -43,20 +44,22 @@
             <button class="truck-card" data-placa="CL5G02"><h3>CL5G02</h3><p>Caminhão Secundário</p></button>
         </section>
 
-        <div id="action-area" class="hidden action-buttons-container">
-            <button id="btn-open-trip" class="btn-full">➕ Registrar Nova Viagem</button>
-            <button id="btn-open-fuel" class="btn-half btn-fuel">⛽ Abastecimento</button>
-            <button id="btn-open-maint" class="btn-half btn-maint">🔧 Manutenção</button>
-        </div>
-
-        <hr class="divider">
-
-        <section class="history-section">
-            <h3 id="history-title">📄 Linha do Tempo Financeira</h3>
-            <div id="accordion-container">
-                <p class="loading-text">Selecione um caminhão acima.</p>
+        <div id="panel-veiculo" class="hidden fade-in">
+            <div class="action-buttons-container">
+                <button id="btn-open-trip" class="btn-full">➕ Registrar Nova Viagem</button>
+                <button id="btn-open-fuel" class="btn-half btn-fuel">⛽ Abastecimento</button>
+                <button id="btn-open-maint" class="btn-half btn-maint">🔧 Manutenção</button>
             </div>
-        </section>
+
+            <hr class="divider">
+
+            <section class="history-section">
+                <h3 id="history-title">📄 Linha do Tempo Financeira</h3>
+                <div id="accordion-container">
+                    <p class="loading-text">Gerando Balanço Financeiro...</p>
+                </div>
+            </section>
+        </div>
     </main>
 
     <div id="trip-modal" class="modal hidden">
