@@ -22,11 +22,18 @@ let audiosExistentes = [];
 let recordingInterval;
 let recordingSeconds = 0;
 
-// === 1. CONTROLADOR DE TELA ===
+// === 1. CONTROLADOR DE TELA (COM DATA AUTOMÁTICA) ===
 onAuthStateChanged(auth, (user) => {
     if (user) {
         loginView.classList.add("hidden"); dashboardView.classList.remove("hidden");
-        document.getElementById("user-greeting").innerText = `Olá, ${user.email.split('@')[0]}! 🚚`;
+        
+        const opcoesData = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        const dataHoje = new Date().toLocaleDateString('pt-BR', opcoesData);
+        document.getElementById("current-date").innerText = dataHoje;
+        
+        let nomePiloto = user.email.split('@')[0];
+        nomePiloto = nomePiloto.charAt(0).toUpperCase() + nomePiloto.slice(1);
+        document.getElementById("user-greeting").innerText = `Olá, ${nomePiloto}! 🚚`;
     } else {
         dashboardView.classList.add("hidden"); loginView.classList.remove("hidden");
     }
@@ -47,7 +54,7 @@ document.getElementById("btn-logout")?.addEventListener("click", () => signOut(a
 const tripModal = document.getElementById("trip-modal");
 const fuelModal = document.getElementById("fuel-modal");
 const maintModal = document.getElementById("maint-modal");
-const actionArea = document.getElementById("action-area");
+const panelVeiculo = document.getElementById("panel-veiculo"); // O novo painel que agrupa tudo
 
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
@@ -56,7 +63,9 @@ document.querySelectorAll(".truck-card").forEach(button => {
         placaAtual = e.currentTarget.getAttribute("data-placa");
         document.querySelectorAll(".placa-label").forEach(el => el.innerText = placaAtual);
         document.getElementById("history-title").innerText = `📄 Resumo Financeiro - ${placaAtual}`;
-        actionArea.classList.remove("hidden");
+        
+        // Revela o painel completo (Botões + Histórico)
+        panelVeiculo.classList.remove("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     });
 });
@@ -124,7 +133,6 @@ function resetarPlayerDeAudio() {
 
 btnRecord?.addEventListener("click", async () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
-        // PARAR GRAVAÇÃO E ENVIAR PARA LISTA
         mediaRecorder.stop();
         clearInterval(recordingInterval);
         
@@ -134,7 +142,6 @@ btnRecord?.addEventListener("click", async () => {
         document.getElementById("recording-timer").classList.add("hidden");
 
     } else {
-        // INICIAR GRAVAÇÃO
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             mediaRecorder = new MediaRecorder(stream);
@@ -153,7 +160,7 @@ btnRecord?.addEventListener("click", async () => {
             
             btnRecord.classList.add("is-recording");
             document.getElementById("record-icon").innerText = "➔";
-            document.getElementById("record-text").innerText = "Enviar"; // Alterado conforme pedido
+            document.getElementById("record-text").innerText = "Enviar"; 
             
             recordingSeconds = 0;
             document.getElementById("timer-text").innerText = "00:00";
