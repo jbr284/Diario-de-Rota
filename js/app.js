@@ -50,11 +50,11 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
 });
 document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
 
-// === 3. SELEÇÃO DO CAMINHÃO ===
+// === 3. SELEÇÃO DO CAMINHÃO E BOTÃO VOLTAR ===
 const tripModal = document.getElementById("trip-modal");
 const fuelModal = document.getElementById("fuel-modal");
 const maintModal = document.getElementById("maint-modal");
-const panelVeiculo = document.getElementById("panel-veiculo"); // O novo painel que agrupa tudo
+const panelVeiculo = document.getElementById("panel-veiculo"); 
 
 document.querySelectorAll(".truck-card").forEach(button => {
     button.addEventListener("click", (e) => {
@@ -64,10 +64,20 @@ document.querySelectorAll(".truck-card").forEach(button => {
         document.querySelectorAll(".placa-label").forEach(el => el.innerText = placaAtual);
         document.getElementById("history-title").innerText = `📄 Resumo Financeiro - ${placaAtual}`;
         
-        // Revela o painel completo (Botões + Histórico)
+        // Revela o painel completo
         panelVeiculo.classList.remove("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     });
+});
+
+// NOVO: Função do Botão Voltar
+document.getElementById("btn-back-home")?.addEventListener("click", () => {
+    // Esconde o painel do veículo
+    panelVeiculo.classList.add("hidden");
+    // Remove a seleção visual (borda azul) das placas
+    document.querySelectorAll(".truck-card").forEach(btn => btn.classList.remove("active-truck"));
+    // Limpa a placa atual da memória
+    placaAtual = "";
 });
 
 // Listas Dinâmicas
