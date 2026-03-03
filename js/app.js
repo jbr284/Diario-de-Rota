@@ -32,7 +32,6 @@ onAuthStateChanged(auth, (user) => {
         let nomePiloto = user.displayName || user.email.split('@')[0];
         document.getElementById("user-greeting").innerText = `Olá, Gestor(a) ${nomePiloto.charAt(0).toUpperCase() + nomePiloto.slice(1)}! 💼`;
         
-        // Sempre que logar, carrega logo a aba de motoristas em segundo plano
         carregarGestaoMotoristas();
     } else {
         dashboardView.classList.add("hidden"); loginView.classList.remove("hidden");
@@ -49,7 +48,7 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
 });
 document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
 
-// === 2. NAVEGAÇÃO MASTER (FROTA VS MOTORISTAS) ===
+// === 2. NAVEGAÇÃO MASTER ===
 const tabFrota = document.getElementById("tab-btn-frota");
 const tabMotoristas = document.getElementById("tab-btn-motoristas");
 const viewFrota = document.getElementById("view-frota");
@@ -63,7 +62,7 @@ tabFrota.addEventListener("click", () => {
 tabMotoristas.addEventListener("click", () => {
     tabMotoristas.classList.add("active"); tabFrota.classList.remove("active");
     viewMotoristas.classList.remove("hidden"); viewFrota.classList.add("hidden");
-    carregarGestaoMotoristas(); // Recarrega sempre que acessa
+    carregarGestaoMotoristas(); 
 });
 
 // === 3. SELEÇÃO DO CAMINHÃO ===
@@ -269,8 +268,8 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
         else { dadosViagem.criado_em = serverTimestamp(); await addDoc(collection(db, "viagens"), dadosViagem); alert("✅ Nova Viagem Iniciada!"); }
 
         tripModal.classList.remove("active"); tripModal.classList.add("hidden");
-        carregarHistoricoCompleto(placaAtual); // Atualiza tela 1
-        carregarGestaoMotoristas(); // Atualiza tela 2 em segundo plano
+        carregarHistoricoCompleto(placaAtual); 
+        carregarGestaoMotoristas(); 
     } catch (err) { alert("Erro ao salvar."); console.error(err); } 
     finally { btn.disabled = false; btn.innerText = "💾 Salvar Viagem"; }
 });
@@ -447,7 +446,8 @@ async function carregarGestaoMotoristas() {
                         </div>
                         <div style="text-align: right; min-width: 90px;">
                             <div style="font-size: 15px; font-weight: bold; margin-bottom: 5px;">R$ ${item.total.toFixed(2)}</div>
-                            <button class="btn-toggle-status ${btnClass}" onclick="toggleStatusPagamento('${item.tripId}', '${item.despesaId}', '${item.nome}', ${item.total}, '${item.status}')">${btnText}</button>
+                            
+                            <button class="btn-toggle-status ${btnClass}" onclick="toggleStatusPagamento('${item.tripId}', '${item.despesaId}', '${nomeMot}', ${item.total}, '${item.status}')">${btnText}</button>
                         </div>
                     </div>`;
                 });
