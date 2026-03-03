@@ -37,35 +37,50 @@
             <div class="user-info">
                 <p id="current-date" class="date-display"></p>
                 <h2 id="user-greeting">Olá, Gestor!</h2>
-                <p class="subtitle">Selecione o veículo abaixo:</p>
             </div>
             <button id="btn-logout" class="btn-logout">Sair</button>
         </header>
 
-        <section class="truck-selection">
-            <button class="truck-card" data-placa="CVP8281"><h3>CVP8281</h3><p>Caminhão Principal</p></button>
-            <button class="truck-card" data-placa="CL5G02"><h3>CL5G02</h3><p>Caminhão Secundário</p></button>
-        </section>
+        <div class="nav-tabs">
+            <button id="tab-btn-frota" class="tab-btn active">🚛 Gestão de Frota</button>
+            <button id="tab-btn-motoristas" class="tab-btn">👨‍✈️ Acerto de Motoristas</button>
+        </div>
 
-        <div id="panel-veiculo" class="hidden fade-in">
-            
-            <div class="panel-header">
-                <h3>Painel: <span class="placa-label" style="color: #2980b9;"></span></h3>
-                <button id="btn-back-home" class="btn-back">⬅ Voltar</button>
+        <div id="view-frota" class="fade-in">
+            <p class="subtitle" style="margin-bottom: 15px; text-align: center;">Selecione o veículo abaixo:</p>
+            <section class="truck-selection">
+                <button class="truck-card" data-placa="CVP8281"><h3>CVP8281</h3><p>Caminhão Principal</p></button>
+                <button class="truck-card" data-placa="CL5G02"><h3>CL5G02</h3><p>Caminhão Secundário</p></button>
+            </section>
+
+            <div id="panel-veiculo" class="hidden fade-in">
+                <div class="panel-header">
+                    <h3>Painel: <span class="placa-label" style="color: #2980b9;"></span></h3>
+                    <button id="btn-back-home" class="btn-back">⬅ Fechar</button>
+                </div>
+
+                <div class="action-buttons-container">
+                    <button id="btn-open-trip" class="btn-full">➕ Registrar Nova Viagem</button>
+                    <button id="btn-open-fuel" class="btn-half btn-fuel">⛽ Abastecimento</button>
+                    <button id="btn-open-maint" class="btn-half btn-maint">🔧 Manutenção</button>
+                </div>
+
+                <hr class="divider">
+
+                <section class="history-section">
+                    <h3 id="history-title">📄 Linha do Tempo Financeira</h3>
+                    <div id="accordion-container">
+                        <p class="loading-text">Selecione um caminhão...</p>
+                    </div>
+                </section>
             </div>
+        </div>
 
-            <div class="action-buttons-container">
-                <button id="btn-open-trip" class="btn-full">➕ Registrar Nova Viagem</button>
-                <button id="btn-open-fuel" class="btn-half btn-fuel">⛽ Abastecimento</button>
-                <button id="btn-open-maint" class="btn-half btn-maint">🔧 Manutenção</button>
-            </div>
-
-            <hr class="divider">
-
+        <div id="view-motoristas" class="hidden fade-in">
             <section class="history-section">
-                <h3 id="history-title">📄 Linha do Tempo Financeira</h3>
-                <div id="accordion-container">
-                    <p class="loading-text">Gerando Balanço Financeiro...</p>
+                <h3 style="color: #2c3e50; margin-bottom: 15px; font-size: 18px; text-align: center;">📄 Contas a Pagar / Pagas</h3>
+                <div id="motoristas-container">
+                    <p class="loading-text">Carregando dados financeiros...</p>
                 </div>
             </section>
         </div>
