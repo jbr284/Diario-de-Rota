@@ -377,7 +377,7 @@ async function carregarHistoricoCompleto(placa) {
     } catch (error) { container.innerHTML = "<p style='color: red;'>Erro.</p>"; }
 }
 
-// === ABA 2: O CÉREBRO DA GESTÃO DE MOTORISTAS ===
+// === ABA 2: O CÉREBRO DA GESTÃO DE MOTORISTAS (COM SANFONA DUPLA) ===
 async function carregarGestaoMotoristas() {
     const container = document.getElementById("motoristas-container");
     container.innerHTML = "<p class='loading-text'>Gerando cruzamento de dados...</p>";
@@ -422,15 +422,21 @@ async function carregarGestaoMotoristas() {
 
             Object.keys(grupo.motoristas).sort().forEach(nomeMot => {
                 const motData = grupo.motoristas[nomeMot];
+                
+                // NOVO: Transformado em Sanfona (details/summary)
                 html += `
-                <div class="driver-card">
-                    <div class="driver-header">
-                        <div class="driver-name">👨‍✈️ ${nomeMot}</div>
+                <details class="driver-card">
+                    <summary class="driver-header">
+                        <div class="driver-name">
+                            <span>👨‍✈️ ${nomeMot}</span>
+                            <span style="font-size: 14px; color: #7f8c8d;">▼</span>
+                        </div>
                         <div class="driver-totals">
                             <span class="tot-pago">Pago: R$ ${motData.pago.toFixed(2)}</span>
                             <span class="tot-aberto">Aberto: R$ ${motData.aberto.toFixed(2)}</span>
                         </div>
-                    </div><div>`;
+                    </summary>
+                    <div style="margin-top: 15px;">`;
                 
                 motData.itens.sort((a,b) => new Date(b.data) - new Date(a.data)).forEach(item => {
                     let statusClass = item.status === "Pago" ? "status-pago" : "status-aberto";
@@ -446,12 +452,11 @@ async function carregarGestaoMotoristas() {
                         </div>
                         <div style="text-align: right; min-width: 90px;">
                             <div style="font-size: 15px; font-weight: bold; margin-bottom: 5px;">R$ ${item.total.toFixed(2)}</div>
-                            
                             <button class="btn-toggle-status ${btnClass}" onclick="toggleStatusPagamento('${item.tripId}', '${item.despesaId}', '${nomeMot}', ${item.total}, '${item.status}')">${btnText}</button>
                         </div>
                     </div>`;
                 });
-                html += `</div></div>`;
+                html += `</div></details>`;
             });
             html += `</div></details>`;
             isPrimeiroMes = false;
@@ -465,14 +470,13 @@ async function carregarGestaoMotoristas() {
 // === GATILHO DUPLO: MUDAR STATUS DE PAGAMENTO COM TRAVA DE SEGURANÇA ===
 window.toggleStatusPagamento = async (tripId, despesaId, nomeMotorista, valorTotal, statusAtual) => {
     
-    // A TRAVA ANTI-DESFALQUE
     const isPago = statusAtual === "Pago";
     const mensagemConfirmacao = isPago 
         ? `⚠️ ATENÇÃO: Você está prestes a ESTORNAR o pagamento de ${nomeMotorista} no valor de R$ ${valorTotal.toFixed(2)}.\n\nTem certeza que deseja REABRIR esta conta?` 
         : `Confirmar o PAGAMENTO de R$ ${valorTotal.toFixed(2)} para ${nomeMotorista}?`;
 
     if (!confirm(mensagemConfirmacao)) {
-        return; // Aborta a operação se o usuário clicar em Cancelar
+        return; 
     }
 
     try {
@@ -484,14 +488,10 @@ window.toggleStatusPagamento = async (tripId, despesaId, nomeMotorista, valorTot
         let despIndex = viagem.despesas_motoristas.findIndex(d => d.id_despesa === despesaId);
         
         if (despIndex > -1) {
-            // Inverte o status
             viagem.despesas_motoristas[despIndex].status = isPago ? "Aberto" : "Pago";
-            // Salva na nuvem
             await updateDoc(docRef, { despesas_motoristas: viagem.despesas_motoristas });
             
-            // Atualiza a tela dos motoristas para refletir os novos totais na hora
             carregarGestaoMotoristas(); 
-            // Se o gestor também estiver com um caminhão aberto na outra aba, recarrega ele lá também
             if(!document.getElementById("panel-veiculo").classList.contains("hidden") && placaAtual) {
                 carregarHistoricoCompleto(placaAtual); 
             }
