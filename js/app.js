@@ -13,7 +13,7 @@ let placaAtual = "";
 let viagensCache = {}; 
 let destinosArray = [];
 let nfsArray = [];
-let despMotArray = []; // NOVO: Array para múltiplos motoristas
+let despMotArray = []; // Array das despesas unificadas de motorista
 
 let mediaRecorder;
 let audioChunks = [];
@@ -22,7 +22,7 @@ let audiosExistentes = [];
 let recordingInterval;
 let recordingSeconds = 0;
 
-// === 1. CONTROLADOR DE TELA ===
+// === 1. CONTROLADOR DE TELA (COM DATA AUTOMÁTICA) ===
 onAuthStateChanged(auth, (user) => {
     if (user) {
         loginView.classList.add("hidden"); dashboardView.classList.remove("hidden");
@@ -31,15 +31,16 @@ onAuthStateChanged(auth, (user) => {
         const dataHoje = new Date().toLocaleDateString('pt-BR', opcoesData);
         document.getElementById("current-date").innerText = dataHoje;
         
+        // Pega o nome no Firebase ou usa o email como fallback
         let nomePiloto = user.displayName || user.email.split('@')[0];
         nomePiloto = nomePiloto.charAt(0).toUpperCase() + nomePiloto.slice(1);
-        document.getElementById("user-greeting").innerText = `Olá, ${nomePiloto}! 🚚`;
+        document.getElementById("user-greeting").innerText = `Olá, Gestor(a) ${nomePiloto}! 💼`;
     } else {
         dashboardView.classList.add("hidden"); loginView.classList.remove("hidden");
     }
 });
 
-// === 2. LOGIN E LOGOUT ===
+// === 2. LOGIN E LOGOUT (Blindado) ===
 document.getElementById("login-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
@@ -50,7 +51,7 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
 });
 document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
 
-// === 3. SELEÇÃO DO CAMINHÃO E VOLTAR ===
+// === 3. SELEÇÃO DO CAMINHÃO E BOTÃO VOLTAR ===
 const tripModal = document.getElementById("trip-modal");
 const fuelModal = document.getElementById("fuel-modal");
 const maintModal = document.getElementById("maint-modal");
@@ -64,6 +65,7 @@ document.querySelectorAll(".truck-card").forEach(button => {
         document.querySelectorAll(".placa-label").forEach(el => el.innerText = placaAtual);
         document.getElementById("history-title").innerText = `📄 Resumo Financeiro - ${placaAtual}`;
         
+        // Revela o painel completo
         panelVeiculo.classList.remove("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     });
@@ -80,9 +82,18 @@ function renderizarListas() {
     document.getElementById("lista-destinos").innerHTML = destinosArray.map((d, index) => `<li>${d} <span onclick="removerDestino(${index})">&times;</span></li>`).join('');
     document.getElementById("lista-nfs").innerHTML = nfsArray.map((nf, index) => `<li>${nf} <span onclick="removerNf(${index})">&times;</span></li>`).join('');
     
-    // Lista de Motoristas
-    document.getElementById("lista-desp-mot").innerHTML = despMotArray.map((d, index) => `<li>${d.nome} (R$ ${d.valor.toFixed(2)}) <span onclick="removerDespMot(${index})">&times;</span></li>`).join('');
-    atualizarTotais(); // Garante que remover ou adicionar motorista atualize o saldo na hora
+    // Lista de Motoristas com Detalhamento (VA, VT, Diária)
+    document.getElementById("lista-desp-mot").innerHTML = despMotArray.map((d, index) => 
+        `<li style="display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px;">
+            <div style="width: 100%; display: flex; justify-content: space-between;">
+                <strong>${d.nome}</strong> 
+                <span onclick="removerDespMot(${index})" style="cursor:pointer; color:red;">&times;</span>
+            </div>
+            <span style="font-size: 11px; color: #555;">VT: R$${d.vt.toFixed(2)} | VA: R$${d.va.toFixed(2)} | Diária: R$${d.diaria.toFixed(2)}</span>
+            <strong style="color: #e67e22; font-size: 12px;">Total: R$${(d.vt + d.va + d.diaria).toFixed(2)}</strong>
+        </li>`
+    ).join('');
+    atualizarTotais(); 
 }
 
 window.removerDestino = (index) => { destinosArray.splice(index, 1); renderizarListas(); };
@@ -97,15 +108,25 @@ document.getElementById("btn-add-nf")?.addEventListener("click", () => {
     const input = document.getElementById("nf_input");
     if(input.value.trim() !== "") { nfsArray.push(input.value.trim()); input.value = ""; renderizarListas(); }
 });
+
+// NOVO: Adicionar Motorista com ID Único e Campos Separados
 document.getElementById("btn-add-desp-mot")?.addEventListener("click", () => {
     const nome = document.getElementById("nome_mot_input").value.trim();
-    const valor = parseFloat(document.getElementById("valor_mot_input").value);
-    if(nome !== "" && !isNaN(valor) && valor > 0) { 
-        despMotArray.push({ nome, valor }); 
+    const vt = parseFloat(document.getElementById("vt_mot_input").value) || 0;
+    const va = parseFloat(document.getElementById("va_mot_input").value) || 0;
+    const diaria = parseFloat(document.getElementById("diaria_mot_input").value) || 0;
+    
+    if(nome !== "" && (vt > 0 || va > 0 || diaria > 0)) { 
+        despMotArray.push({ 
+            id_despesa: "desp_" + Date.now().toString(36) + Math.random().toString(36).substr(2),
+            nome, vt, va, diaria, status: "Aberto" 
+        }); 
         document.getElementById("nome_mot_input").value = "";
-        document.getElementById("valor_mot_input").value = "";
+        document.getElementById("vt_mot_input").value = "";
+        document.getElementById("va_mot_input").value = "";
+        document.getElementById("diaria_mot_input").value = "";
         renderizarListas(); 
-    } else { alert("Preencha o nome e um valor válido."); }
+    } else { alert("Preencha o nome e ao menos um valor (VT, VA ou Diária)."); }
 });
 
 // === FASE 4: MOTOR DE ÁUDIO ===
@@ -121,17 +142,11 @@ function formatTime(sec) {
 function renderizarAudiosNaTela() {
     let html = "";
     audiosExistentes.forEach((url, index) => {
-        html += `<div class="audio-item">
-                    <audio controls src="${url}" class="audio-player"></audio>
-                    <button type="button" class="btn-delete-audio" onclick="removerAudioExistente(${index})">🗑️</button>
-                 </div>`;
+        html += `<div class="audio-item"><audio controls src="${url}" class="audio-player"></audio><button type="button" class="btn-delete-audio" onclick="removerAudioExistente(${index})">🗑️</button></div>`;
     });
     audiosNovosBlobs.forEach((blob, index) => {
         const tempUrl = URL.createObjectURL(blob);
-        html += `<div class="audio-item">
-                    <audio controls src="${tempUrl}" class="audio-player"></audio>
-                    <button type="button" class="btn-delete-audio" onclick="removerAudioNovo(${index})">🗑️</button>
-                 </div>`;
+        html += `<div class="audio-item"><audio controls src="${tempUrl}" class="audio-player"></audio><button type="button" class="btn-delete-audio" onclick="removerAudioNovo(${index})">🗑️</button></div>`;
     });
     containerAudios.innerHTML = html;
 }
@@ -193,8 +208,7 @@ async function uploadAudioToCloudinary(blob) {
 // === MATEMÁTICA AUTOMÁTICA E BUG FIX DA KM ===
 const atualizarTotais = () => {
     const frete = parseFloat(document.getElementById("valor_frete").value) || 0;
-    // Soma todos os motoristas adicionados
-    const despMotTotal = despMotArray.reduce((acc, curr) => acc + curr.valor, 0);
+    const despMotTotal = despMotArray.reduce((acc, curr) => acc + (curr.vt + curr.va + curr.diaria), 0);
     const ped = parseFloat(document.getElementById("desp_pedagio").value) || 0;
     const despesas = despMotTotal + ped;
     document.getElementById("total_despesas_display").innerText = despesas.toFixed(2);
@@ -202,14 +216,12 @@ const atualizarTotais = () => {
 };
 document.querySelectorAll(".calc-input").forEach(input => input.addEventListener("input", atualizarTotais));
 
-// Função autônoma para garantir cálculo da KM em edições
 const calcularKm = () => {
     const inicio = parseFloat(document.getElementById("km_inicio").value) || 0;
     const final = parseFloat(document.getElementById("km_final").value) || 0;
     document.getElementById("km_total_display").innerText = final > inicio ? final - inicio : 0;
 };
 document.querySelectorAll(".calc-km").forEach(input => input.addEventListener("input", calcularKm));
-
 
 // === ABRIR E FECHAR MODAIS ===
 function resetarFormularioViagem() {
@@ -220,7 +232,7 @@ function resetarFormularioViagem() {
     destinosArray = []; nfsArray = []; despMotArray = []; renderizarListas();
     document.getElementById("total_despesas_display").innerText = "0.00";
     document.getElementById("total_liquido_display").innerText = "0.00";
-    calcularKm(); // Zera o display de KM
+    calcularKm(); 
     resetarPlayerDeAudio();
 }
 
@@ -247,11 +259,10 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
         const todasAsUrlsDeAudio = [...audiosExistentes, ...urlsGeradasNaNuvem];
         btn.innerText = "💾 Salvando Dados...";
 
-        // Recalcula desp_motorista com base na lista
-        const despMotTotal = despMotArray.reduce((acc, curr) => acc + curr.valor, 0);
+        const despMotTotal = despMotArray.reduce((acc, curr) => acc + (curr.vt + curr.va + curr.diaria), 0);
 
         const dadosViagem = {
-            veiculo_id: placaAtual, motorista_uid: auth.currentUser.uid,
+            veiculo_id: placaAtual, motorista_uid: auth.currentUser.uid, // Registra quem criou, mas não limita a visualização
             data_viagem: document.getElementById("data_viagem").value,
             data_entrega: document.getElementById("data_entrega").value,
             origem: document.getElementById("origem").value,
@@ -260,7 +271,7 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
             audios: todasAsUrlsDeAudio, 
             valores: {
                 frete_bruto: parseFloat(document.getElementById("valor_frete").value) || 0,
-                despesa_motorista: despMotTotal,
+                despesa_motorista: despMotTotal, // Mantido para compatibilidade de soma
                 despesa_pedagio: parseFloat(document.getElementById("desp_pedagio").value) || 0,
                 total_despesas: parseFloat(document.getElementById("total_despesas_display").innerText),
                 total_liquido: parseFloat(document.getElementById("total_liquido_display").innerText)
@@ -304,21 +315,22 @@ document.getElementById("maint-form")?.addEventListener("submit", async (e) => {
     } catch (err) { alert("Erro ao salvar."); } finally { btn.disabled = false; }
 });
 
-// === 6. GERAR SANFONA E RESUMO MENSAL ===
+// === 6. GERAR SANFONA E RESUMO MENSAL (UNIFICADO) ===
 async function carregarHistoricoCompleto(uid, placa) {
     const container = document.getElementById("accordion-container");
-    container.innerHTML = "<p class='loading-text'>Gerando Balanço Financeiro...</p>";
+    container.innerHTML = "<p class='loading-text'>Gerando Balanço Financeiro Geral...</p>";
     viagensCache = {}; 
     
     try {
         let historico = [];
-        const snapViagens = await getDocs(query(collection(db, "viagens"), where("motorista_uid", "==", uid), where("veiculo_id", "==", placa)));
+        // ATENÇÃO: Remoção do where("motorista_uid", "==", uid). Agora puxa as viagens de TODOS os sócios para aquela placa.
+        const snapViagens = await getDocs(query(collection(db, "viagens"), where("veiculo_id", "==", placa)));
         snapViagens.forEach(doc => { let d = doc.data(); d.id = doc.id; d.tipo = "viagem"; d.data_ordenacao = d.data_viagem; viagensCache[doc.id] = d; historico.push(d); });
 
-        const snapAbast = await getDocs(query(collection(db, "abastecimentos"), where("motorista_uid", "==", uid), where("veiculo_id", "==", placa)));
+        const snapAbast = await getDocs(query(collection(db, "abastecimentos"), where("veiculo_id", "==", placa)));
         snapAbast.forEach(doc => { let d = doc.data(); d.tipo = "abastecimento"; d.data_ordenacao = d.data; historico.push(d); });
 
-        const snapManut = await getDocs(query(collection(db, "manutencoes"), where("motorista_uid", "==", uid), where("veiculo_id", "==", placa)));
+        const snapManut = await getDocs(query(collection(db, "manutencoes"), where("veiculo_id", "==", placa)));
         snapManut.forEach(doc => { let d = doc.data(); d.tipo = "manutencao"; d.data_ordenacao = d.data; historico.push(d); });
 
         if (historico.length === 0) { container.innerHTML = `<p class='loading-text'>Nenhum registro para ${placa}.</p>`; return; }
@@ -332,12 +344,13 @@ async function carregarHistoricoCompleto(uid, placa) {
             const mesAno = `${nomeMeses[dataObj.getMonth()]} ${dataObj.getFullYear()}`;
             const chaveOrdem = item.data_ordenacao.substring(0, 7); 
 
-            if (!mesesAgrupados[chaveOrdem]) { mesesAgrupados[chaveOrdem] = { titulo: mesAno, itens: [], totais: { fretes: 0, despesas: 0, combustivel: 0, manutencao: 0 } }; }
+            if (!mesesAgrupados[chaveOrdem]) { mesesAgrupados[chaveOrdem] = { titulo: mesAno, itens: [], totais: { fretes: 0, despesas: 0, combustivel: 0, manutencao: 0, pedagio: 0 } }; }
             mesesAgrupados[chaveOrdem].itens.push(item);
 
             if (item.tipo === "viagem") {
                 mesesAgrupados[chaveOrdem].totais.fretes += item.valores.frete_bruto || 0;
-                mesesAgrupados[chaveOrdem].totais.despesas += (item.valores.despesa_motorista || 0) + (item.valores.despesa_pedagio || 0);
+                mesesAgrupados[chaveOrdem].totais.despesas += item.valores.despesa_motorista || 0;
+                mesesAgrupados[chaveOrdem].totais.pedagio += item.valores.despesa_pedagio || 0;
             } else if (item.tipo === "abastecimento") { mesesAgrupados[chaveOrdem].totais.combustivel += item.valor_total || 0;
             } else if (item.tipo === "manutencao") { mesesAgrupados[chaveOrdem].totais.manutencao += item.valor_total || 0; }
         });
@@ -346,9 +359,8 @@ async function carregarHistoricoCompleto(uid, placa) {
         
         Object.keys(mesesAgrupados).sort((a, b) => b.localeCompare(a)).forEach(chave => {
             const grupo = mesesAgrupados[chave];
-            const lucroLiquido = grupo.totais.fretes - grupo.totais.despesas - grupo.totais.combustivel - grupo.totais.manutencao;
+            const lucroLiquido = grupo.totais.fretes - grupo.totais.despesas - grupo.totais.pedagio - grupo.totais.combustivel - grupo.totais.manutencao;
 
-            // REMOVIDO: O valor numérico que ficava ao lado do mês
             html += `<details class="month-group" ${isPrimeiroMes ? 'open' : ''}>`;
             html += `<summary class="month-title"><span>📅 ${grupo.titulo}</span><span style="font-size: 14px;">▼</span></summary><div class="month-content">`;
 
@@ -357,25 +369,14 @@ async function carregarHistoricoCompleto(uid, placa) {
                     let dests = Array.isArray(item.destinos) && item.destinos.length > 0 ? item.destinos.join(', ') : (item.destino || 'N/A');
                     let notas = Array.isArray(item.nfs) && item.nfs.length > 0 ? item.nfs.join(', ') : (item.numero_nf || 'S/N');
                     let statusColor = item.status === "Concluída" ? "#2ecc71" : "#f39c12";
-                    
-                    let obsHtml = item.observacoes ? `<p style="margin-top:10px; padding: 10px; background: #fdfdfd; border-radius: 5px; font-style: italic; color: #7f8c8d; font-size: 13px;">📝 "${item.observacoes}"</p>` : "";
-                    
-                    let audioHtml = "";
-                    if (item.audios && item.audios.length > 0) {
-                        audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relatos de Áudio:</p>`;
-                        item.audios.forEach(url => { audioHtml += `<audio controls src="${url}" class="audio-player" style="margin-bottom: 5px;"></audio>`; });
-                        audioHtml += `</div>`;
-                    } else if (item.audio_url) { audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relato de Áudio:</p><audio controls src="${item.audio_url}" class="audio-player"></audio></div>`; }
-
-                    // NOVO: Renderiza múltiplos motoristas ou legado
-                    let despMotHtml = item.despesas_motoristas && item.despesas_motoristas.length > 0
-                        ? item.despesas_motoristas.map(d => `${d.nome} (R$ ${d.valor.toFixed(2)})`).join(', ')
-                        : `R$ ${(item.valores.despesa_motorista || 0).toFixed(2)}`;
-
-                    // NOVO: Cálculo Individual e Botões Dinâmicos
-                    let lucroViagem = item.valores.frete_bruto - (item.valores.despesa_motorista + item.valores.despesa_pedagio);
                     let textoBotao = item.status === "Concluída" ? "🔍 Verificar Viagem" : "✏️ Atualizar Viagem";
                     let corBotao = item.status === "Concluída" ? "#3498db" : "#f39c12";
+                    
+                    let despMotHtml = item.despesas_motoristas && item.despesas_motoristas.length > 0
+                        ? item.despesas_motoristas.map(d => `<div style="padding-left: 10px; border-left: 2px solid #bdc3c7; margin-top: 5px;"><strong>${d.nome}</strong>: VT R$${d.vt.toFixed(2)} | VA R$${d.va.toFixed(2)} | Diária R$${d.diaria.toFixed(2)}</div>`).join('')
+                        : `<div style="padding-left: 10px; font-style: italic; color: #7f8c8d;">Despesa Base: R$ ${(item.valores.despesa_motorista || 0).toFixed(2)}</div>`;
+
+                    let lucroViagem = item.valores.frete_bruto - (item.valores.despesa_motorista + item.valores.despesa_pedagio);
 
                     html += `
                     <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid ${statusColor};">
@@ -388,19 +389,17 @@ async function carregarHistoricoCompleto(uid, placa) {
                         <div style="padding: 15px; border-top: 1px solid #eee; font-size: 14px; color: #34495e;">
                             <p>📦 <strong>NFs:</strong> ${notas}</p>
                             <p>📅 <strong>Entrega:</strong> ${item.data_entrega ? item.data_entrega.split('-').reverse().join('/') : 'Aguardando...'}</p>
-                            <p>👨‍✈️ <strong>Motoristas:</strong> ${despMotHtml}</p>
-                            <p>📉 <strong>Pedágio:</strong> R$ ${(item.valores.despesa_pedagio).toFixed(2)}</p>
+                            <div style="margin: 10px 0;">👨‍✈️ <strong>Despesas Motoristas:</strong> ${despMotHtml}</div>
+                            <p>📉 <strong>Gastos c/ Pedágio:</strong> R$ ${(item.valores.despesa_pedagio).toFixed(2)}</p>
                             <p>🛣️ <strong>Rodado:</strong> ${item.quilometragem.km_total} km</p>
-                            ${obsHtml}
-                            ${audioHtml}
                             
-                            <hr style="margin: 12px 0; border: 0; border-top: 1px dashed #ccc;">
+                            <hr style="margin: 15px 0; border: 0; border-top: 2px dashed #bdc3c7;">
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                                <span style="color: #7f8c8d; font-size: 14px;">Líquido da Viagem:</span>
-                                <span style="font-size: 16px; font-weight: bold; color: ${lucroViagem >= 0 ? '#2ecc71' : '#e74c3c'};">R$ ${lucroViagem.toFixed(2)}</span>
+                                <span style="color: #2c3e50; font-size: 15px;">Líquido da Viagem:</span>
+                                <span style="font-size: 18px; font-weight: bold; color: ${lucroViagem >= 0 ? '#2ecc71' : '#e74c3c'};">R$ ${lucroViagem.toFixed(2)}</span>
                             </div>
 
-                            <button class="btn-edit btn-edit-trip" data-id="${item.id}" style="background-color: ${corBotao};">${textoBotao}</button>
+                            <button class="btn-edit btn-edit-trip" data-id="${item.id}" style="background-color: ${corBotao}; width: 100%; border-radius: 6px;">${textoBotao}</button>
                         </div>
                     </details>`;
                 } 
@@ -415,8 +414,9 @@ async function carregarHistoricoCompleto(uid, placa) {
             html += `
             <div class="monthly-summary-card">
                 <h5>📊 Fechamento de ${grupo.titulo.split(' ')[0]}</h5>
-                <div class="summary-row"><span>(+) Fretes Brutos:</span> <span>R$ ${grupo.totais.fretes.toFixed(2)}</span></div>
-                <div class="summary-row" style="color:#e74c3c;"><span>(-) Despesas Viagem:</span> <span>R$ ${grupo.totais.despesas.toFixed(2)}</span></div>
+                <div class="summary-row"><span>(+) Frete Bruto:</span> <span>R$ ${grupo.totais.fretes.toFixed(2)}</span></div>
+                <div class="summary-row" style="color:#e74c3c;"><span>(-) Motoristas (VA/VT/Diária):</span> <span>R$ ${grupo.totais.despesas.toFixed(2)}</span></div>
+                <div class="summary-row" style="color:#e74c3c;"><span>(-) Gastos c/ Pedágio:</span> <span>R$ ${grupo.totais.pedagio.toFixed(2)}</span></div>
                 <div class="summary-row" style="color:#e74c3c;"><span>(-) Combustível:</span> <span>R$ ${grupo.totais.combustivel.toFixed(2)}</span></div>
                 <div class="summary-row" style="color:#e74c3c;"><span>(-) Manutenções:</span> <span>R$ ${grupo.totais.manutencao.toFixed(2)}</span></div>
                 <hr>
@@ -448,12 +448,11 @@ function abrirEdicaoViagem(id) {
     destinosArray = Array.isArray(dados.destinos) ? [...dados.destinos] : (dados.destino ? [dados.destino] : []);
     nfsArray = Array.isArray(dados.nfs) ? [...dados.nfs] : (dados.numero_nf ? [dados.numero_nf] : []);
     
-    // Tratamento para viagens antigas que só tinham 1 valor genérico
+    // Tratamento Inteligente para Viagens Antigas (Legado)
     despMotArray = Array.isArray(dados.despesas_motoristas) ? [...dados.despesas_motoristas] : [];
-    if (despMotArray.length === 0 && dados.valores.despesa_motorista > 0) {
-        despMotArray.push({ nome: "Motorista", valor: dados.valores.despesa_motorista });
+    if (despMotArray.length === 0 && dados.valores && dados.valores.despesa_motorista > 0) {
+        despMotArray.push({ id_despesa: "legado_" + Date.now(), nome: "Motorista (Legado)", vt: 0, va: 0, diaria: dados.valores.despesa_motorista, status: "Pago" });
     }
-
     renderizarListas();
 
     document.getElementById("valor_frete").value = dados.valores.frete_bruto || ""; 
@@ -465,9 +464,8 @@ function abrirEdicaoViagem(id) {
     renderizarAudiosNaTela();
 
     atualizarTotais(); 
-    calcularKm(); // Garante o cálculo da edição
+    calcularKm(); 
     
-    // Ajusta o texto do botão de salvar dependendo se a viagem já está concluída
     document.getElementById("btn-save-trip").innerText = dados.status === "Concluída" ? "💾 Salvar Verificação" : "🔄 Atualizar Viagem";
     tripModal.classList.remove("hidden"); tripModal.classList.add("active");
 }
