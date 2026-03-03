@@ -13,8 +13,8 @@ let placaAtual = "";
 let viagensCache = {}; 
 let destinosArray = [];
 let nfsArray = [];
+let despMotArray = []; // NOVO: Array para múltiplos motoristas
 
-// Variáveis Globais de Áudio e Cronômetro
 let mediaRecorder;
 let audioChunks = [];
 let audiosNovosBlobs = []; 
@@ -22,7 +22,7 @@ let audiosExistentes = [];
 let recordingInterval;
 let recordingSeconds = 0;
 
-// === 1. CONTROLADOR DE TELA (COM DATA AUTOMÁTICA) ===
+// === 1. CONTROLADOR DE TELA ===
 onAuthStateChanged(auth, (user) => {
     if (user) {
         loginView.classList.add("hidden"); dashboardView.classList.remove("hidden");
@@ -31,7 +31,6 @@ onAuthStateChanged(auth, (user) => {
         const dataHoje = new Date().toLocaleDateString('pt-BR', opcoesData);
         document.getElementById("current-date").innerText = dataHoje;
         
-        // Pega o nome no Firebase ou usa o email como fallback
         let nomePiloto = user.displayName || user.email.split('@')[0];
         nomePiloto = nomePiloto.charAt(0).toUpperCase() + nomePiloto.slice(1);
         document.getElementById("user-greeting").innerText = `Olá, ${nomePiloto}! 🚚`;
@@ -40,7 +39,7 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
-// === 2. LOGIN E LOGOUT (Blindado) ===
+// === 2. LOGIN E LOGOUT ===
 document.getElementById("login-form")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     try {
@@ -51,7 +50,7 @@ document.getElementById("login-form")?.addEventListener("submit", async (e) => {
 });
 document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
 
-// === 3. SELEÇÃO DO CAMINHÃO E BOTÃO VOLTAR ===
+// === 3. SELEÇÃO DO CAMINHÃO E VOLTAR ===
 const tripModal = document.getElementById("trip-modal");
 const fuelModal = document.getElementById("fuel-modal");
 const maintModal = document.getElementById("maint-modal");
@@ -65,26 +64,30 @@ document.querySelectorAll(".truck-card").forEach(button => {
         document.querySelectorAll(".placa-label").forEach(el => el.innerText = placaAtual);
         document.getElementById("history-title").innerText = `📄 Resumo Financeiro - ${placaAtual}`;
         
-        // Revela o painel completo
         panelVeiculo.classList.remove("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
     });
 });
 
-// Função do Botão Voltar
 document.getElementById("btn-back-home")?.addEventListener("click", () => {
     panelVeiculo.classList.add("hidden");
     document.querySelectorAll(".truck-card").forEach(btn => btn.classList.remove("active-truck"));
     placaAtual = "";
 });
 
-// Listas Dinâmicas
+// === LISTAS DINÂMICAS ===
 function renderizarListas() {
     document.getElementById("lista-destinos").innerHTML = destinosArray.map((d, index) => `<li>${d} <span onclick="removerDestino(${index})">&times;</span></li>`).join('');
     document.getElementById("lista-nfs").innerHTML = nfsArray.map((nf, index) => `<li>${nf} <span onclick="removerNf(${index})">&times;</span></li>`).join('');
+    
+    // Lista de Motoristas
+    document.getElementById("lista-desp-mot").innerHTML = despMotArray.map((d, index) => `<li>${d.nome} (R$ ${d.valor.toFixed(2)}) <span onclick="removerDespMot(${index})">&times;</span></li>`).join('');
+    atualizarTotais(); // Garante que remover ou adicionar motorista atualize o saldo na hora
 }
+
 window.removerDestino = (index) => { destinosArray.splice(index, 1); renderizarListas(); };
 window.removerNf = (index) => { nfsArray.splice(index, 1); renderizarListas(); };
+window.removerDespMot = (index) => { despMotArray.splice(index, 1); renderizarListas(); };
 
 document.getElementById("btn-add-destino")?.addEventListener("click", () => {
     const input = document.getElementById("destino_input");
@@ -94,8 +97,18 @@ document.getElementById("btn-add-nf")?.addEventListener("click", () => {
     const input = document.getElementById("nf_input");
     if(input.value.trim() !== "") { nfsArray.push(input.value.trim()); input.value = ""; renderizarListas(); }
 });
+document.getElementById("btn-add-desp-mot")?.addEventListener("click", () => {
+    const nome = document.getElementById("nome_mot_input").value.trim();
+    const valor = parseFloat(document.getElementById("valor_mot_input").value);
+    if(nome !== "" && !isNaN(valor) && valor > 0) { 
+        despMotArray.push({ nome, valor }); 
+        document.getElementById("nome_mot_input").value = "";
+        document.getElementById("valor_mot_input").value = "";
+        renderizarListas(); 
+    } else { alert("Preencha o nome e um valor válido."); }
+});
 
-// === FASE 4: MOTOR DE ÁUDIO COM CRONÔMETRO ===
+// === FASE 4: MOTOR DE ÁUDIO ===
 const btnRecord = document.getElementById("btn-record-audio");
 const containerAudios = document.getElementById("lista-audios-container");
 
@@ -128,11 +141,8 @@ window.removerAudioNovo = (index) => { audiosNovosBlobs.splice(index, 1); render
 
 function resetarPlayerDeAudio() {
     clearInterval(recordingInterval); 
-    audiosNovosBlobs = [];
-    audiosExistentes = [];
-    audioChunks = [];
+    audiosNovosBlobs = []; audiosExistentes = []; audioChunks = [];
     renderizarAudiosNaTela();
-    
     btnRecord.classList.remove("is-recording");
     document.getElementById("record-icon").innerText = "🎤";
     document.getElementById("record-text").innerText = "Gravar Áudio";
@@ -141,45 +151,31 @@ function resetarPlayerDeAudio() {
 
 btnRecord?.addEventListener("click", async () => {
     if (mediaRecorder && mediaRecorder.state === "recording") {
-        mediaRecorder.stop();
-        clearInterval(recordingInterval);
-        
+        mediaRecorder.stop(); clearInterval(recordingInterval);
         btnRecord.classList.remove("is-recording");
         document.getElementById("record-icon").innerText = "🎤";
         document.getElementById("record-text").innerText = "Gravar Novo Áudio";
         document.getElementById("recording-timer").classList.add("hidden");
-
     } else {
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
-
+            mediaRecorder = new MediaRecorder(stream); audioChunks = [];
             mediaRecorder.ondataavailable = event => { if (event.data.size > 0) audioChunks.push(event.data); };
-            
             mediaRecorder.onstop = () => {
                 const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                audiosNovosBlobs.push(blob); 
-                renderizarAudiosNaTela();    
+                audiosNovosBlobs.push(blob); renderizarAudiosNaTela();    
                 stream.getTracks().forEach(track => track.stop()); 
             };
-
             mediaRecorder.start();
-            
             btnRecord.classList.add("is-recording");
             document.getElementById("record-icon").innerText = "➔";
             document.getElementById("record-text").innerText = "Enviar"; 
-            
-            recordingSeconds = 0;
-            document.getElementById("timer-text").innerText = "00:00";
+            recordingSeconds = 0; document.getElementById("timer-text").innerText = "00:00";
             document.getElementById("recording-timer").classList.remove("hidden");
-            
             recordingInterval = setInterval(() => {
-                recordingSeconds++;
-                document.getElementById("timer-text").innerText = formatTime(recordingSeconds);
+                recordingSeconds++; document.getElementById("timer-text").innerText = formatTime(recordingSeconds);
             }, 1000);
-
-        } catch (err) { alert("Permissão de microfone negada ou indisponível."); }
+        } catch (err) { alert("Permissão de microfone negada."); }
     }
 });
 
@@ -187,32 +183,44 @@ async function uploadAudioToCloudinary(blob) {
     const formData = new FormData();
     formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
     formData.append('file', blob, 'gravacao.webm');
-
-    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, {
-        method: 'POST', 
-        body: formData
-    });
-    
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`, { method: 'POST', body: formData });
     if (!response.ok) {
-        const erroDetalhado = await response.json();
-        console.error("🔥 MOTIVO EXATO DO BLOQUEIO CLOUDINARY:", erroDetalhado);
-        throw new Error(erroDetalhado.error ? erroDetalhado.error.message : "Erro desconhecido");
+        const erroDetalhado = await response.json(); throw new Error(erroDetalhado.error ? erroDetalhado.error.message : "Erro desconhecido");
     }
-    
-    const data = await response.json();
-    return data.secure_url;
+    const data = await response.json(); return data.secure_url;
 }
 
-// === ABRIR E FECHAR MODAIS (COM LIMPEZA) ===
+// === MATEMÁTICA AUTOMÁTICA E BUG FIX DA KM ===
+const atualizarTotais = () => {
+    const frete = parseFloat(document.getElementById("valor_frete").value) || 0;
+    // Soma todos os motoristas adicionados
+    const despMotTotal = despMotArray.reduce((acc, curr) => acc + curr.valor, 0);
+    const ped = parseFloat(document.getElementById("desp_pedagio").value) || 0;
+    const despesas = despMotTotal + ped;
+    document.getElementById("total_despesas_display").innerText = despesas.toFixed(2);
+    document.getElementById("total_liquido_display").innerText = (frete - despesas).toFixed(2);
+};
+document.querySelectorAll(".calc-input").forEach(input => input.addEventListener("input", atualizarTotais));
+
+// Função autônoma para garantir cálculo da KM em edições
+const calcularKm = () => {
+    const inicio = parseFloat(document.getElementById("km_inicio").value) || 0;
+    const final = parseFloat(document.getElementById("km_final").value) || 0;
+    document.getElementById("km_total_display").innerText = final > inicio ? final - inicio : 0;
+};
+document.querySelectorAll(".calc-km").forEach(input => input.addEventListener("input", calcularKm));
+
+
+// === ABRIR E FECHAR MODAIS ===
 function resetarFormularioViagem() {
     document.getElementById("trip-form").reset();
     document.getElementById("edit-trip-id").value = "";
     document.getElementById("trip-modal-title").innerHTML = `Nova Viagem - <span class="placa-label">${placaAtual}</span>`;
     document.getElementById("btn-save-trip").innerText = "💾 Salvar Viagem";
-    destinosArray = []; nfsArray = []; renderizarListas();
+    destinosArray = []; nfsArray = []; despMotArray = []; renderizarListas();
     document.getElementById("total_despesas_display").innerText = "0.00";
     document.getElementById("total_liquido_display").innerText = "0.00";
-    document.getElementById("km_total_display").innerText = "0";
+    calcularKm(); // Zera o display de KM
     resetarPlayerDeAudio();
 }
 
@@ -224,25 +232,6 @@ document.querySelectorAll(".close-modal").forEach(btn => {
     btn.addEventListener("click", (e) => { e.target.closest(".modal").classList.remove("active"); e.target.closest(".modal").classList.add("hidden"); });
 });
 
-// === MATEMÁTICA AUTOMÁTICA ===
-const atualizarTotais = () => {
-    const frete = parseFloat(document.getElementById("valor_frete").value) || 0;
-    const mot = parseFloat(document.getElementById("desp_mot").value) || 0;
-    const ped = parseFloat(document.getElementById("desp_pedagio").value) || 0;
-    const despesas = mot + ped;
-    document.getElementById("total_despesas_display").innerText = despesas.toFixed(2);
-    document.getElementById("total_liquido_display").innerText = (frete - despesas).toFixed(2);
-};
-document.querySelectorAll(".calc-input").forEach(input => input.addEventListener("input", atualizarTotais));
-
-document.querySelectorAll(".calc-km").forEach(input => {
-    input.addEventListener("input", () => {
-        const inicio = parseFloat(document.getElementById("km_inicio").value) || 0;
-        const final = parseFloat(document.getElementById("km_final").value) || 0;
-        document.getElementById("km_total_display").innerText = final > inicio ? final - inicio : 0;
-    });
-});
-
 // === SALVAMENTO NO FIRESTORE ===
 document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
     e.preventDefault(); if (!auth.currentUser) return;
@@ -250,27 +239,28 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
 
     try {
         let urlsGeradasNaNuvem = [];
-
         if (audiosNovosBlobs.length > 0) {
-            btn.innerText = `⏳ Enviando ${audiosNovosBlobs.length} áudio(s) para a Nuvem...`;
+            btn.innerText = `⏳ Enviando ${audiosNovosBlobs.length} áudio(s)...`;
             const uploadPromises = audiosNovosBlobs.map(blob => uploadAudioToCloudinary(blob));
             urlsGeradasNaNuvem = await Promise.all(uploadPromises); 
         }
-
         const todasAsUrlsDeAudio = [...audiosExistentes, ...urlsGeradasNaNuvem];
         btn.innerText = "💾 Salvando Dados...";
+
+        // Recalcula desp_motorista com base na lista
+        const despMotTotal = despMotArray.reduce((acc, curr) => acc + curr.valor, 0);
 
         const dadosViagem = {
             veiculo_id: placaAtual, motorista_uid: auth.currentUser.uid,
             data_viagem: document.getElementById("data_viagem").value,
             data_entrega: document.getElementById("data_entrega").value,
             origem: document.getElementById("origem").value,
-            destinos: destinosArray, nfs: nfsArray,
+            destinos: destinosArray, nfs: nfsArray, despesas_motoristas: despMotArray,
             observacoes: document.getElementById("observacoes").value,
             audios: todasAsUrlsDeAudio, 
             valores: {
                 frete_bruto: parseFloat(document.getElementById("valor_frete").value) || 0,
-                despesa_motorista: parseFloat(document.getElementById("desp_mot").value) || 0,
+                despesa_motorista: despMotTotal,
                 despesa_pedagio: parseFloat(document.getElementById("desp_pedagio").value) || 0,
                 total_despesas: parseFloat(document.getElementById("total_despesas_display").innerText),
                 total_liquido: parseFloat(document.getElementById("total_liquido_display").innerText)
@@ -284,10 +274,7 @@ document.getElementById("trip-form")?.addEventListener("submit", async (e) => {
 
         tripModal.classList.remove("active"); tripModal.classList.add("hidden");
         carregarHistoricoCompleto(auth.currentUser.uid, placaAtual);
-    } catch (err) { 
-        alert("Erro ao salvar: " + err.message); 
-        console.error(err); 
-    } 
+    } catch (err) { alert("Erro ao salvar: " + err.message); console.error(err); } 
     finally { btn.disabled = false; btn.innerText = "💾 Salvar Viagem"; }
 });
 
@@ -361,8 +348,9 @@ async function carregarHistoricoCompleto(uid, placa) {
             const grupo = mesesAgrupados[chave];
             const lucroLiquido = grupo.totais.fretes - grupo.totais.despesas - grupo.totais.combustivel - grupo.totais.manutencao;
 
+            // REMOVIDO: O valor numérico que ficava ao lado do mês
             html += `<details class="month-group" ${isPrimeiroMes ? 'open' : ''}>`;
-            html += `<summary class="month-title"><span>📅 ${grupo.titulo}</span><span style="font-size: 14px; color: ${lucroLiquido >= 0 ? '#2ecc71' : '#e74c3c'};">R$ ${lucroLiquido.toFixed(2)} ▼</span></summary><div class="month-content">`;
+            html += `<summary class="month-title"><span>📅 ${grupo.titulo}</span><span style="font-size: 14px;">▼</span></summary><div class="month-content">`;
 
             grupo.itens.forEach((item) => {
                 if (item.tipo === "viagem") {
@@ -375,13 +363,19 @@ async function carregarHistoricoCompleto(uid, placa) {
                     let audioHtml = "";
                     if (item.audios && item.audios.length > 0) {
                         audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relatos de Áudio:</p>`;
-                        item.audios.forEach(url => {
-                            audioHtml += `<audio controls src="${url}" class="audio-player" style="margin-bottom: 5px;"></audio>`;
-                        });
+                        item.audios.forEach(url => { audioHtml += `<audio controls src="${url}" class="audio-player" style="margin-bottom: 5px;"></audio>`; });
                         audioHtml += `</div>`;
-                    } else if (item.audio_url) {
-                        audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relato de Áudio:</p><audio controls src="${item.audio_url}" class="audio-player"></audio></div>`;
-                    }
+                    } else if (item.audio_url) { audioHtml = `<div style="margin-top: 10px;"><p style="font-size:12px; color:#7f8c8d; margin-bottom: 5px;">🎤 Relato de Áudio:</p><audio controls src="${item.audio_url}" class="audio-player"></audio></div>`; }
+
+                    // NOVO: Renderiza múltiplos motoristas ou legado
+                    let despMotHtml = item.despesas_motoristas && item.despesas_motoristas.length > 0
+                        ? item.despesas_motoristas.map(d => `${d.nome} (R$ ${d.valor.toFixed(2)})`).join(', ')
+                        : `R$ ${(item.valores.despesa_motorista || 0).toFixed(2)}`;
+
+                    // NOVO: Cálculo Individual e Botões Dinâmicos
+                    let lucroViagem = item.valores.frete_bruto - (item.valores.despesa_motorista + item.valores.despesa_pedagio);
+                    let textoBotao = item.status === "Concluída" ? "🔍 Verificar Viagem" : "✏️ Atualizar Viagem";
+                    let corBotao = item.status === "Concluída" ? "#3498db" : "#f39c12";
 
                     html += `
                     <details class="form-section" style="margin-bottom: 12px; cursor: pointer; background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-left: 4px solid ${statusColor};">
@@ -394,11 +388,19 @@ async function carregarHistoricoCompleto(uid, placa) {
                         <div style="padding: 15px; border-top: 1px solid #eee; font-size: 14px; color: #34495e;">
                             <p>📦 <strong>NFs:</strong> ${notas}</p>
                             <p>📅 <strong>Entrega:</strong> ${item.data_entrega ? item.data_entrega.split('-').reverse().join('/') : 'Aguardando...'}</p>
-                            <p>📉 <strong>Desp. Viagem:</strong> R$ ${(item.valores.despesa_motorista + item.valores.despesa_pedagio).toFixed(2)}</p>
+                            <p>👨‍✈️ <strong>Motoristas:</strong> ${despMotHtml}</p>
+                            <p>📉 <strong>Pedágio:</strong> R$ ${(item.valores.despesa_pedagio).toFixed(2)}</p>
                             <p>🛣️ <strong>Rodado:</strong> ${item.quilometragem.km_total} km</p>
                             ${obsHtml}
                             ${audioHtml}
-                            <button class="btn-edit btn-edit-trip" data-id="${item.id}">✏️ Atualizar Viagem</button>
+                            
+                            <hr style="margin: 12px 0; border: 0; border-top: 1px dashed #ccc;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <span style="color: #7f8c8d; font-size: 14px;">Líquido da Viagem:</span>
+                                <span style="font-size: 16px; font-weight: bold; color: ${lucroViagem >= 0 ? '#2ecc71' : '#e74c3c'};">R$ ${lucroViagem.toFixed(2)}</span>
+                            </div>
+
+                            <button class="btn-edit btn-edit-trip" data-id="${item.id}" style="background-color: ${corBotao};">${textoBotao}</button>
                         </div>
                     </details>`;
                 } 
@@ -445,9 +447,16 @@ function abrirEdicaoViagem(id) {
     
     destinosArray = Array.isArray(dados.destinos) ? [...dados.destinos] : (dados.destino ? [dados.destino] : []);
     nfsArray = Array.isArray(dados.nfs) ? [...dados.nfs] : (dados.numero_nf ? [dados.numero_nf] : []);
+    
+    // Tratamento para viagens antigas que só tinham 1 valor genérico
+    despMotArray = Array.isArray(dados.despesas_motoristas) ? [...dados.despesas_motoristas] : [];
+    if (despMotArray.length === 0 && dados.valores.despesa_motorista > 0) {
+        despMotArray.push({ nome: "Motorista", valor: dados.valores.despesa_motorista });
+    }
+
     renderizarListas();
 
-    document.getElementById("valor_frete").value = dados.valores.frete_bruto || ""; document.getElementById("desp_mot").value = dados.valores.despesa_motorista || "";
+    document.getElementById("valor_frete").value = dados.valores.frete_bruto || ""; 
     document.getElementById("desp_pedagio").value = dados.valores.despesa_pedagio || "";
     document.getElementById("km_inicio").value = dados.quilometragem.km_inicio || ""; document.getElementById("km_final").value = dados.quilometragem.km_final || "";
 
@@ -455,6 +464,10 @@ function abrirEdicaoViagem(id) {
     else if (dados.audio_url) { audiosExistentes = [dados.audio_url]; }
     renderizarAudiosNaTela();
 
-    atualizarTotais(); document.getElementById("btn-save-trip").innerText = "🔄 Atualizar Viagem";
+    atualizarTotais(); 
+    calcularKm(); // Garante o cálculo da edição
+    
+    // Ajusta o texto do botão de salvar dependendo se a viagem já está concluída
+    document.getElementById("btn-save-trip").innerText = dados.status === "Concluída" ? "💾 Salvar Verificação" : "🔄 Atualizar Viagem";
     tripModal.classList.remove("hidden"); tripModal.classList.add("active");
 }
