@@ -1,4 +1,4 @@
-const CACHE_NAME = "diario-rota-v5"; // Mudamos a versão para forçar a quebra do cache atual
+const CACHE_NAME = "diario-rota-v6"; // Mudamos a versão para forçar a quebra do cache atual
 
 const urlsToCache = [
   "./",
