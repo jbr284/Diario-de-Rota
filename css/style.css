@@ -5,11 +5,14 @@ body { background-color: #f4f7f6; display: flex; justify-content: center; min-he
 /* Container Mobile */
 .container { width: 100%; max-width: 480px; padding: 20px; background-color: #ffffff; min-height: 100vh; box-shadow: 0 0 15px rgba(0,0,0,0.05); }
 
-/* Header */
+/* Header e Nav Tabs */
 header { text-align: center; margin-bottom: 25px; margin-top: 20px;}
-.dashboard-header { display: flex; justify-content: space-between; align-items: center; text-align: left; }
+.dashboard-header { display: flex; justify-content: space-between; align-items: center; text-align: left; margin-bottom: 15px;}
 .dashboard-header h2 { font-size: 20px; color: #2c3e50; }
-.dashboard-header p { font-size: 14px; color: #7f8c8d; }
+
+.nav-tabs { display: flex; gap: 10px; margin-bottom: 20px; background: #ecf0f1; padding: 5px; border-radius: 10px;}
+.tab-btn { flex: 1; padding: 10px; border-radius: 8px; font-weight: bold; background-color: transparent; color: #7f8c8d; border: none; cursor: pointer; transition: 0.3s; font-size: 14px;}
+.tab-btn.active { background-color: #fff; color: #2980b9; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
 
 /* Inputs Padrão */
 .input-group { margin-bottom: 15px; }
@@ -38,7 +41,6 @@ button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size
 .audio-player { width: 100%; outline: none; height: 40px;}
 .audio-item { display: flex; align-items: center; gap: 8px; margin-top: 10px; background: #fdfdfd; padding: 5px; border-radius: 8px; border: 1px solid #eee; }
 .btn-delete-audio { background-color: transparent; border: 1px solid #e74c3c; color: #e74c3c; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 8px; padding: 0; font-size: 18px;}
-.btn-delete-audio:hover { background-color: #e74c3c; color: white; }
 
 /* Botões de Ação do Caminhão */
 .action-buttons-container { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 25px; }
@@ -57,17 +59,14 @@ button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size
 /* Listas Dinâmicas */
 .dynamic-list { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
 .dynamic-list li { background-color: #e8f4f8; border: 1px solid #3498db; color: #2980b9; padding: 5px 12px; border-radius: 20px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
-.dynamic-list li span { cursor: pointer; color: #e74c3c; font-weight: bold; font-size: 16px; line-height: 1; }
 
 /* Histórico e Linha do Tempo */
 .divider { border: 0; height: 1px; background: #ecf0f1; margin: 20px 0; }
-.history-section h3 { color: #2c3e50; margin-bottom: 15px; font-size: 18px; }
 .loading-text { color: #7f8c8d; text-align: center; font-size: 14px; padding: 20px 0;}
 
 /* GRUPOS MENSAIS E RESUMO */
 .month-group { margin-bottom: 25px; background-color: #ecf0f1; border-radius: 8px; }
 .month-title { background-color: #2c3e50; color: white; padding: 15px; border-radius: 8px; font-size: 15px; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); cursor: pointer; outline: none; list-style: none; display: flex; justify-content: space-between; align-items: center; transition: 0.3s;}
-.month-title:hover { background-color: #1a252f; }
 .month-title::-webkit-details-marker { display: none; } 
 .month-content { padding: 15px 10px; } 
 
@@ -79,7 +78,23 @@ button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size
 .total-row.positive { color: #2ecc71; }
 .total-row.negative { color: #e74c3c; }
 
-/* Modais */
+/* ESTILOS DA ABA GESTÃO DE MOTORISTAS (NOVO) */
+.driver-card { background: #fff; border: 1px solid #bdc3c7; border-radius: 8px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+.driver-header { display: flex; flex-direction: column; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; margin-bottom: 10px; }
+.driver-name { font-size: 18px; color: #2c3e50; font-weight: bold; margin-bottom: 5px;}
+.driver-totals { display: flex; justify-content: space-between; font-size: 14px; background: #f8f9fa; padding: 8px; border-radius: 6px;}
+.tot-pago { color: #2ecc71; font-weight: bold; }
+.tot-aberto { color: #e74c3c; font-weight: bold; }
+
+.despesa-item { border: 1px solid #eee; border-radius: 6px; padding: 10px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; background-color: #fdfdfd; border-left: 4px solid #95a5a6; }
+.despesa-item.status-pago { border-left-color: #2ecc71; }
+.despesa-item.status-aberto { border-left-color: #e74c3c; }
+
+.btn-toggle-status { width: auto; padding: 6px 12px; border-radius: 4px; font-size: 12px; font-weight: bold; border: none; cursor: pointer; }
+.btn-status-aberto { background-color: #e74c3c; color: white; }
+.btn-status-pago { background-color: #2ecc71; color: white; }
+
+/* Modais e Paineis*/
 .modal { display: none; position: fixed; z-index: 100; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); overflow-y: auto; }
 .modal.active { display: flex; justify-content: center; align-items: flex-start; padding-top: 20px; padding-bottom: 20px; }
 .modal-content { background-color: #fff; width: 95%; max-width: 480px; padding: 20px; border-radius: 12px; position: relative; }
@@ -92,17 +107,11 @@ button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size
 .summary-section h3 { text-align: left; margin-bottom: 10px; border-bottom: 1px solid #455a64; padding-bottom: 5px; }
 .highlight-net { font-size: 20px; font-weight: bold; color: #2ecc71; margin-top: 5px; }
 .hidden { display: none !important; }
-
-/* ESTILOS DA NOVA HOME LIMPA E PAINEL */
 .date-display { font-size: 12px; color: #7f8c8d; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; font-weight: bold;}
 .subtitle { margin-top: 5px; color: #95a5a6; font-size: 14px;}
 .fade-in { animation: fadeIn 0.4s ease-in-out; }
-@keyframes fadeIn { 
-    from { opacity: 0; transform: translateY(-10px); } 
-    to { opacity: 1; transform: translateY(0); } 
-}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 
-/* O NOVO CABEÇALHO COM BOTÃO VOLTAR */
 .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #ecf0f1; padding-bottom: 10px; }
 .panel-header h3 { font-size: 16px; color: #2c3e50; }
 .btn-back { background-color: #95a5a6; color: white; width: auto; padding: 8px 15px; font-size: 14px; border-radius: 6px; }
