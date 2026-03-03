@@ -66,7 +66,6 @@ tabMotoristas.addEventListener("click", () => {
     carregarGestaoMotoristas(); // Recarrega sempre que acessa
 });
 
-
 // === 3. SELEÇÃO DO CAMINHÃO ===
 const tripModal = document.getElementById("trip-modal");
 const fuelModal = document.getElementById("fuel-modal");
@@ -379,13 +378,13 @@ async function carregarHistoricoCompleto(placa) {
     } catch (error) { container.innerHTML = "<p style='color: red;'>Erro.</p>"; }
 }
 
-// === ABA 2: O CÉREBRO DA GESTÃO DE MOTORISTAS (NOVO) ===
+// === ABA 2: O CÉREBRO DA GESTÃO DE MOTORISTAS ===
 async function carregarGestaoMotoristas() {
     const container = document.getElementById("motoristas-container");
     container.innerHTML = "<p class='loading-text'>Gerando cruzamento de dados...</p>";
     
     try {
-        const snapViagens = await getDocs(collection(db, "viagens")); // Pega TODAS as viagens da empresa
+        const snapViagens = await getDocs(collection(db, "viagens")); 
         const mesesAgrupados = {};
         const nomeMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -448,7 +447,7 @@ async function carregarGestaoMotoristas() {
                         </div>
                         <div style="text-align: right; min-width: 90px;">
                             <div style="font-size: 15px; font-weight: bold; margin-bottom: 5px;">R$ ${item.total.toFixed(2)}</div>
-                            <button class="btn-toggle-status ${btnClass}" onclick="toggleStatusPagamento('${item.tripId}', '${item.despesaId}')">${btnText}</button>
+                            <button class="btn-toggle-status ${btnClass}" onclick="toggleStatusPagamento('${item.tripId}', '${item.despesaId}', '${item.nome}', ${item.total}, '${item.status}')">${btnText}</button>
                         </div>
                     </div>`;
                 });
@@ -463,8 +462,19 @@ async function carregarGestaoMotoristas() {
     } catch (error) { console.error(error); container.innerHTML = "<p style='color: red;'>Erro ao carregar dados.</p>"; }
 }
 
-// === GATILHO DUPLO: MUDAR STATUS DE PAGAMENTO (NOVO) ===
-window.toggleStatusPagamento = async (tripId, despesaId) => {
+// === GATILHO DUPLO: MUDAR STATUS DE PAGAMENTO COM TRAVA DE SEGURANÇA ===
+window.toggleStatusPagamento = async (tripId, despesaId, nomeMotorista, valorTotal, statusAtual) => {
+    
+    // A TRAVA ANTI-DESFALQUE
+    const isPago = statusAtual === "Pago";
+    const mensagemConfirmacao = isPago 
+        ? `⚠️ ATENÇÃO: Você está prestes a ESTORNAR o pagamento de ${nomeMotorista} no valor de R$ ${valorTotal.toFixed(2)}.\n\nTem certeza que deseja REABRIR esta conta?` 
+        : `Confirmar o PAGAMENTO de R$ ${valorTotal.toFixed(2)} para ${nomeMotorista}?`;
+
+    if (!confirm(mensagemConfirmacao)) {
+        return; // Aborta a operação se o usuário clicar em Cancelar
+    }
+
     try {
         const docRef = doc(db, "viagens", tripId);
         const docSnap = await getDoc(docRef);
@@ -475,7 +485,7 @@ window.toggleStatusPagamento = async (tripId, despesaId) => {
         
         if (despIndex > -1) {
             // Inverte o status
-            viagem.despesas_motoristas[despIndex].status = viagem.despesas_motoristas[despIndex].status === "Pago" ? "Aberto" : "Pago";
+            viagem.despesas_motoristas[despIndex].status = isPago ? "Aberto" : "Pago";
             // Salva na nuvem
             await updateDoc(docRef, { despesas_motoristas: viagem.despesas_motoristas });
             
