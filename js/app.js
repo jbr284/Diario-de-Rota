@@ -1,4 +1,4 @@
-import { signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { signInWithEmailAndPassword, createUserWithEmailAndPassword, updateProfile, sendPasswordResetEmail, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { collection, addDoc, doc, updateDoc, getDoc, serverTimestamp, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 import { auth, db } from "./firebase-init.js";
 
@@ -7,9 +7,8 @@ const CLOUDINARY_UPLOAD_PRESET = "diariorota";
 
 const loginView = document.getElementById("login-view");
 const dashboardView = document.getElementById("dashboard-view");
-const btnLogin = document.getElementById("btn-login");
-let placaAtual = "";
 
+let placaAtual = "";
 let viagensCache = {}; 
 let destinosArray = [];
 let nfsArray = [];
@@ -22,15 +21,15 @@ let audiosExistentes = [];
 let recordingInterval;
 let recordingSeconds = 0;
 
-// === 1. CONTROLADOR DE TELA ===
+// === 1. CONTROLADOR DE TELA E PERFIL ===
 onAuthStateChanged(auth, (user) => {
     if (user) {
         loginView.classList.add("hidden"); dashboardView.classList.remove("hidden");
         const opcoesData = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
         document.getElementById("current-date").innerText = new Date().toLocaleDateString('pt-BR', opcoesData);
         
-        let nomePiloto = user.displayName || user.email.split('@')[0];
-        document.getElementById("user-greeting").innerText = `Olá, Gestor(a) ${nomePiloto.charAt(0).toUpperCase() + nomePiloto.slice(1)}! 💼`;
+        let nomeExibicao = user.displayName || user.email.split('@')[0];
+        document.getElementById("user-greeting").innerText = `Olá, Gestor(a) ${nomeExibicao}! 💼`;
         
         carregarGestaoMotoristas();
     } else {
@@ -38,17 +37,77 @@ onAuthStateChanged(auth, (user) => {
     }
 });
 
+// === 2. AUTENTICAÇÃO: LOGIN, CADASTRO WHITELIST E RECUPERAÇÃO ===
+const boxLogin = document.getElementById("box-login");
+const boxCadastro = document.getElementById("box-cadastro");
+
+// Alternar entre Login e Cadastro
+document.getElementById("btn-ir-cadastro")?.addEventListener("click", () => {
+    boxLogin.classList.add("hidden"); boxCadastro.classList.remove("hidden");
+});
+document.getElementById("btn-ir-login")?.addEventListener("click", () => {
+    boxCadastro.classList.add("hidden"); boxLogin.classList.remove("hidden");
+});
+
+// Ação de Login
 document.getElementById("login-form")?.addEventListener("submit", async (e) => {
-    e.preventDefault();
+    e.preventDefault(); const btn = document.getElementById("btn-login");
     try {
-        btnLogin.innerText = "Aguarde..."; btnLogin.disabled = true;
+        btn.innerText = "Aguarde..."; btn.disabled = true;
         await signInWithEmailAndPassword(auth, document.getElementById("email").value, document.getElementById("senha").value);
     } catch (erro) { alert("E-mail ou senha incorretos."); } 
-    finally { btnLogin.innerText = "Entrar no Sistema"; btnLogin.disabled = false; }
+    finally { btn.innerText = "Entrar no Sistema"; btn.disabled = false; }
 });
+
+// Ação de Esqueci a Senha
+document.getElementById("btn-esqueci-senha")?.addEventListener("click", async () => {
+    const email = document.getElementById("email").value;
+    if(!email) { alert("Por favor, digite seu e-mail no campo acima para recuperar a senha."); return; }
+    
+    try {
+        await sendPasswordResetEmail(auth, email);
+        alert(`Um link de redefinição de senha foi enviado para ${email}. Verifique sua caixa de entrada e spam.`);
+    } catch (error) { alert("Erro ao tentar recuperar a senha: " + error.message); }
+});
+
+// Ação de Cadastro (WHITELIST)
+document.getElementById("register-form")?.addEventListener("submit", async (e) => {
+    e.preventDefault(); const btn = document.getElementById("btn-register");
+    const nome = document.getElementById("reg_nome").value.trim();
+    const sobrenome = document.getElementById("reg_sobrenome").value.trim();
+    const email = document.getElementById("reg_email").value.trim();
+    const senha = document.getElementById("reg_senha").value;
+
+    try {
+        btn.innerText = "Verificando autorização..."; btn.disabled = true;
+        
+        // 1. Checa a Lista Branca no Firestore
+        const q = query(collection(db, "emails_liberados"), where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+        
+        if(querySnapshot.empty) {
+            throw new Error("Seu e-mail não foi autorizado pelo administrador. Solicite liberação na base de dados.");
+        }
+
+        // 2. Se passou, cria a conta no Firebase Auth
+        btn.innerText = "Criando conta...";
+        const userCredential = await createUserWithEmailAndPassword(auth, email, senha);
+        
+        // 3. Salva o Nome e Sobrenome no Perfil
+        await updateProfile(userCredential.user, { displayName: `${nome} ${sobrenome}` });
+        
+        // O onAuthStateChanged (Lá no topo) vai jogar ele pra dentro do sistema automaticamente!
+    } catch (erro) { 
+        if (erro.code === 'auth/email-already-in-use') { alert("Este e-mail já possui uma conta ativa. Faça o login."); } 
+        else { alert("Bloqueado: " + erro.message); }
+    } 
+    finally { btn.innerText = "Finalizar Cadastro"; btn.disabled = false; }
+});
+
 document.getElementById("btn-logout")?.addEventListener("click", () => signOut(auth));
 
-// === 2. NAVEGAÇÃO MASTER ===
+
+// === 3. NAVEGAÇÃO MASTER ===
 const tabFrota = document.getElementById("tab-btn-frota");
 const tabMotoristas = document.getElementById("tab-btn-motoristas");
 const viewFrota = document.getElementById("view-frota");
@@ -65,7 +124,7 @@ tabMotoristas.addEventListener("click", () => {
     carregarGestaoMotoristas(); 
 });
 
-// === 3. SELEÇÃO DO CAMINHÃO ===
+// === 4. SELEÇÃO DO CAMINHÃO ===
 const tripModal = document.getElementById("trip-modal");
 const fuelModal = document.getElementById("fuel-modal");
 const maintModal = document.getElementById("maint-modal");
@@ -377,7 +436,7 @@ async function carregarHistoricoCompleto(placa) {
     } catch (error) { container.innerHTML = "<p style='color: red;'>Erro.</p>"; }
 }
 
-// === ABA 2: O CÉREBRO DA GESTÃO DE MOTORISTAS (COM SANFONA DUPLA) ===
+// === ABA 2: GESTÃO DE MOTORISTAS ===
 async function carregarGestaoMotoristas() {
     const container = document.getElementById("motoristas-container");
     container.innerHTML = "<p class='loading-text'>Gerando cruzamento de dados...</p>";
@@ -423,7 +482,6 @@ async function carregarGestaoMotoristas() {
             Object.keys(grupo.motoristas).sort().forEach(nomeMot => {
                 const motData = grupo.motoristas[nomeMot];
                 
-                // NOVO: Transformado em Sanfona (details/summary)
                 html += `
                 <details class="driver-card">
                     <summary class="driver-header">
@@ -467,17 +525,13 @@ async function carregarGestaoMotoristas() {
     } catch (error) { console.error(error); container.innerHTML = "<p style='color: red;'>Erro ao carregar dados.</p>"; }
 }
 
-// === GATILHO DUPLO: MUDAR STATUS DE PAGAMENTO COM TRAVA DE SEGURANÇA ===
 window.toggleStatusPagamento = async (tripId, despesaId, nomeMotorista, valorTotal, statusAtual) => {
-    
     const isPago = statusAtual === "Pago";
     const mensagemConfirmacao = isPago 
         ? `⚠️ ATENÇÃO: Você está prestes a ESTORNAR o pagamento de ${nomeMotorista} no valor de R$ ${valorTotal.toFixed(2)}.\n\nTem certeza que deseja REABRIR esta conta?` 
         : `Confirmar o PAGAMENTO de R$ ${valorTotal.toFixed(2)} para ${nomeMotorista}?`;
 
-    if (!confirm(mensagemConfirmacao)) {
-        return; 
-    }
+    if (!confirm(mensagemConfirmacao)) return; 
 
     try {
         const docRef = doc(db, "viagens", tripId);
