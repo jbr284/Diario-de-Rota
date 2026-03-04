@@ -21,14 +21,39 @@
             <p>Controle de Frota e Despesas</p>
         </header>
 
-        <form id="login-form">
-            <div class="input-group"><label>E-mail corporativo</label><input type="email" id="email" required></div>
-            <div class="input-group"><label>Senha</label><input type="password" id="senha" required></div>
-            <button type="submit" id="btn-login" class="btn-primary">Entrar no Sistema</button>
-        </form>
-        
-        <p style="text-align: center; margin-top: 25px; font-size: 13px; color: #95a5a6;">
-            🔒 Acesso restrito. Solicite suas credenciais ao gestor da frota.
+        <div id="box-login">
+            <form id="login-form">
+                <div class="input-group"><label>E-mail corporativo</label><input type="email" id="email" required></div>
+                <div class="input-group"><label>Senha</label><input type="password" id="senha" required></div>
+                <button type="submit" id="btn-login" class="btn-primary">Entrar no Sistema</button>
+            </form>
+            
+            <div class="auth-links">
+                <span id="btn-esqueci-senha">Esqueci minha senha</span>
+                <span id="btn-ir-cadastro" style="font-weight: bold;">Primeiro acesso? Registre-se</span>
+            </div>
+        </div>
+
+        <div id="box-cadastro" class="hidden">
+            <h3 style="margin-bottom: 15px; color: #2c3e50; text-align: center;">Crie sua Conta</h3>
+            <form id="register-form">
+                <div class="input-flex">
+                    <div class="input-group" style="flex: 1;"><label>Nome</label><input type="text" id="reg_nome" required></div>
+                    <div class="input-group" style="flex: 1.5;"><label>Sobrenome</label><input type="text" id="reg_sobrenome" required></div>
+                </div>
+                <div class="input-group"><label>E-mail autorizado</label><input type="email" id="reg_email" required></div>
+                <div class="input-group"><label>Crie sua Senha (Mín 6 caracteres)</label><input type="password" id="reg_senha" minlength="6" required></div>
+                
+                <button type="submit" id="btn-register" class="btn-primary" style="background-color: #27ae60;">Finalizar Cadastro</button>
+            </form>
+            
+            <div class="auth-links" style="justify-content: center; margin-top: 20px;">
+                <span id="btn-ir-login">⬅ Já tenho conta. Voltar ao Login</span>
+            </div>
+        </div>
+
+        <p style="text-align: center; margin-top: 30px; font-size: 12px; color: #95a5a6;">
+            🔒 Acesso restrito. O cadastro só é permitido para e-mails pré-aprovados pela gestão.
         </p>
     </main>
 
@@ -36,7 +61,7 @@
         <header class="dashboard-header">
             <div class="user-info">
                 <p id="current-date" class="date-display"></p>
-                <h2 id="user-greeting">Olá, Gestor!</h2>
+                <h2 id="user-greeting">Olá!</h2>
             </div>
             <button id="btn-logout" class="btn-logout">Sair</button>
         </header>
